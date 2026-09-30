@@ -1,0 +1,16 @@
+# Front-End
+node_modules/
+dist/
+.env
+
+# Back-End (Django)
+__pycache__/
+*.pyc
+.venv/
+venv/
+db.sqlite3
+
+# محررات وأنظمة
+.vscode/*
+!.vscode/extensions.json
+.DS_Store

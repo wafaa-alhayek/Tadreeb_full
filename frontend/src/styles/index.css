@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/*
+  ألوان وخطوط المشروع (من ملف Brand Guidelines — هبة).
+  أي لون جديد بينضاف هون بس، مش جوّا المكونات.
+  بعد ما نعرّفه هون، بنستخدمه هيك: bg-primary أو text-primary
+*/
+@theme {
+  --font-sans: "Cairo", system-ui, sans-serif;
+
+  --color-primary: #003399;       /* الكحلي الرسمي */
+  --color-primary-light: #E7EDF7;
+  --color-surface: #F5F7FB;       /* خلفية الصفحات */
+
+  /* ألوان حالات الطلب */
+  --color-status-draft: #6B7280;
+  --color-status-review: #B45309;
+  --color-status-changes: #C2410C;
+  --color-status-accepted: #2E7D32;
+  --color-status-rejected: #C62828;
+  --color-status-assigned: #2E75B6;
+}
+
+body {
+  @apply bg-surface text-gray-800 font-sans;
+}
