@@ -1,6 +1,12 @@
 # الخادم (Back-End) — وفاء
 
-Django + Django REST Framework. لسا ما بلّش.
+to run Django + Django REST Framework. copy this command in you terminal:
+
+cd backend
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python manage.py runserver
 
 الخطوة الجاية: إنشاء مشروع Django هون، وأول Apps حسب الوحدة 1 (المستخدمون والأدوار، ملف الطالب).
 
