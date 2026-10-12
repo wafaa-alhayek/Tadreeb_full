@@ -1,19 +1,51 @@
-// ─────────────────────────────────────────────
-//  الشريط العلوي (اسم المستخدم + الإشعارات) — المسؤول: حسين
-// ─────────────────────────────────────────────
-export default function Header({ user }) {
+export default function Header() {
   return (
-    <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-light text-primary font-bold">
-          {user.name.charAt(0)}
+    <header
+      dir="rtl"
+      className="h-[55px] w-full bg-white border-b border-[#e1e4e8] flex items-center justify-between px-5"
+    >
+      {/* Right Side */}
+      <div className="flex items-center gap-2">
+        <div className="w-[28px] h-[28px] rounded-[7px] bg-[#e9eef5] flex items-center justify-center text-[#64748b] text-sm">
+          🎓
         </div>
-        <div className="leading-tight">
-          <div className="text-sm font-semibold">{user.name}</div>
-          <div className="text-xs text-gray-500">{user.role}</div>
-        </div>
+
+        <span className="text-[12px] font-bold text-[#252b36]">
+          نظام إدارة التدريب الميداني للطلبة
+        </span>
       </div>
-      <button className="text-xl" aria-label="الإشعارات">🔔</button>
+
+      {/* Left Side */}
+      <div className="flex items-center gap-4">
+
+        {/* Notification */}
+        <button
+          type="button"
+          className="text-[#697386] text-[16px] hover:text-[#252b36] transition"
+        >
+          ♧
+        </button>
+
+        {/* Student */}
+        <div className="flex items-center gap-2">
+
+          <div className="w-[31px] h-[31px] rounded-full bg-[#e8edf3] flex items-center justify-center text-[#64748b]">
+            ♙
+          </div>
+
+          <div className="text-right leading-tight">
+            <p className="text-[11px] font-bold text-[#252b36]">
+              أمل أحمد
+            </p>
+
+            <p className="text-[9px] text-[#7b8491]">
+              طالبة
+            </p>
+          </div>
+
+        </div>
+
+      </div>
     </header>
-  )
+  );
 }
