@@ -1,5 +1,5 @@
-import Header from "../../components/Header";
-import Sidebar from "../../components/Sidebar";
+import Header from "../../components/student/Header";
+import Sidebar from "../../components/student/Sidebar";
 import { useNavigate } from "react-router-dom";
 
 export default function FinishTraining() {

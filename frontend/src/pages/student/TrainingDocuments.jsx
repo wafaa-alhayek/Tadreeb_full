@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 
-import Header from "../../components/Header";
-import Sidebar from "../../components/Sidebar";
+import Header from "../../components/student/Header";
+import Sidebar from "../../components/student/Sidebar";
 
 export default function TrainingDocuments() {
   const navigate = useNavigate();
