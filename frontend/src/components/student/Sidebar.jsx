@@ -2,17 +2,17 @@ import { NavLink } from "react-router-dom";
 
 export default function Sidebar() {
   const menuItems = [
-    { name: "الرئيسية", icon: "⌂", path: "/dashboard" },
-    { name: "فرص التدريب", icon: "⌕", path: "/opportunities" },
-    { name: "طلباتي", icon: "▤", path: "/applications" },
-    { name: "ملفي التدريبي", icon: "□", path: "/training-profile" },
-    { name: "الحضور والغياب", icon: "▣", path: "/attendance" },
-    { name: "التقارير", icon: "▥", path: "/reports" },
-    { name: "التقييم", icon: "☆", path: "/evaluation" },
-    { name: "إنهاء التدريب", icon: "⚑", path: "/finish-training" },
-    { name: "الشهادة", icon: "♙", path: "/certificate" },
-    { name: "الإشعارات", icon: "♧", path: "/notifications" },
-    { name: "الملف الشخصي", icon: "♙", path: "/profile" },
+    { name: "الرئيسية", icon: "⌂", path: "/student/dashboard" },
+    { name: "فرص التدريب", icon: "⌕", path: "/student/opportunities" },
+    { name: "طلباتي", icon: "▤", path: "/student/applications/status" },
+    { name: "ملفي التدريبي", icon: "□", path: "/student/training-profile" },
+    { name: "الحضور والغياب", icon: "▣", path: "/student/attendance" },
+    { name: "التقارير", icon: "▥", path: "/student/reports" },
+    { name: "التقييم", icon: "☆", path: "/student/evaluation" },
+    { name: "إنهاء التدريب", icon: "⚑", path: "/student/finish-training" },
+    { name: "الشهادة", icon: "♙", path: "/student/certificate" },
+    { name: "الإشعارات", icon: "♧", path: "/student/notifications" },
+    { name: "الملف الشخصي", icon: "♙", path: "/student/profile" },
   ];
 
   return (
