@@ -134,6 +134,13 @@ MAILERS = {
 
 AUTH_USER_MODEL = "accounts.User"
 
+# FR-01: log in with the university ID (username) or the email.
+AUTHENTICATION_BACKENDS = ["accounts.backends.UniversityIdOrEmailBackend"]
+
+# Uploaded files (CVs, documents) during development.
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 
 # Django REST Framework: log in with JWT, and require login by default.
 # Public views opt out with @permission_classes([AllowAny]).
@@ -144,6 +151,8 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
 }
 
 SIMPLE_JWT = {
@@ -155,3 +164,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
+
+# Tadreeb business rules. Values in [brackets] in the SRS are still open team decisions.
+# BR-01 / D-01: credit hours needed to be eligible (proposed default, college to confirm).
+TADREEB_MIN_CREDIT_HOURS = 90
+# BR-01 / D-01: no GPA condition unless the college requires one (e.g. Decimal("2.00")).
+TADREEB_MIN_GPA = None
