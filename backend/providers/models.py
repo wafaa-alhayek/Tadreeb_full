@@ -12,7 +12,8 @@ class Provider(models.Model):
 
     name = models.CharField("الاسم", max_length=200)
     sector = models.CharField("القطاع", max_length=100)
-    location = models.CharField("الموقع", max_length=200)
+    city = models.CharField("المدينة", max_length=100)
+    address = models.CharField("العنوان", max_length=255, blank=True)
 
     contact_name = models.CharField("مسؤول التواصل", max_length=150)
     contact_phone = models.CharField("هاتف التواصل", max_length=30)
