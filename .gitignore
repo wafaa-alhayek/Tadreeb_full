@@ -14,3 +14,6 @@ db.sqlite3
 .vscode/*
 !.vscode/extensions.json
 .DS_Store
+
+# Uploaded files (Django media)
+backend/media/
