@@ -15,5 +15,11 @@ python manage.py collectstatic --noinput
 python manage.py check --deploy --fail-level ERROR
 
 # Touching the WSGI file makes PythonAnywhere reload the web app.
-touch "/var/www/${USER}_pythonanywhere_com_wsgi.py"
-echo "Deployed. Open https://${USER}.pythonanywhere.com/api/docs/"
+# Its name uses the lowercased username (FTPlatform -> ftplatform_pythonanywhere_com_wsgi.py).
+WSGI_FILE="/var/www/${USER,,}_pythonanywhere_com_wsgi.py"
+if [ ! -f "$WSGI_FILE" ]; then
+    echo "WSGI file $WSGI_FILE not found: reload the web app from the Web tab instead."
+    exit 1
+fi
+touch "$WSGI_FILE"
+echo "Deployed. Open https://${USER,,}.pythonanywhere.com/api/docs/"
