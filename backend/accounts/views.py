@@ -1,4 +1,5 @@
 from django.db.models import Q
+from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -14,11 +15,16 @@ from .serializers import (
 )
 
 
+@extend_schema(responses=MeSerializer)
 @api_view(["GET"])
 def me(request):
     return Response(MeSerializer(request.user).data)
 
 
+@extend_schema(methods=["GET"], responses=StudentProfileSerializer)
+@extend_schema(
+    methods=["PATCH"], request=StudentSelfUpdateSerializer, responses=StudentProfileSerializer
+)
 @api_view(["GET", "PATCH"])
 @permission_classes([IsStudent])
 @parser_classes([JSONParser, MultiPartParser, FormParser])
