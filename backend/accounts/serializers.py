@@ -1,4 +1,5 @@
 from django.conf import settings
+from drf_spectacular.utils import extend_schema_field, inline_serializer
 from rest_framework import serializers
 
 from .eligibility import check_eligibility
@@ -64,6 +65,16 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             "eligibility",
         ]
 
+    @extend_schema_field(
+        inline_serializer(
+            "Eligibility",
+            {
+                "is_eligible": serializers.BooleanField(),
+                "reasons": serializers.ListField(child=serializers.CharField()),
+                "min_credit_hours": serializers.IntegerField(),
+            },
+        )
+    )
     def get_eligibility(self, profile):
         is_eligible, reasons = check_eligibility(profile)
         return {

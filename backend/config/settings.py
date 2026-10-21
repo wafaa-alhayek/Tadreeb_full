@@ -10,23 +10,39 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+import os
 from datetime import timedelta
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Server-specific values come from backend/.env (never committed; see .env.example).
+# Without a .env file the defaults below are for local development.
+load_dotenv(BASE_DIR / ".env")
 
-# Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-v74=tq_i)64am6ixm6c08-mzex6!_9e6eep=la+_kf)=6@-8^7'
-
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() == "true"
 
-ALLOWED_HOSTS = []
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is False.")
+    # Public key, only for local development.
+    SECRET_KEY = 'django-insecure-v74=tq_i)64am6ixm6c08-mzex6!_9e6eep=la+_kf)=6@-8^7'
+
+# Comma-separated, e.g. "yourname.pythonanywhere.com".
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    if host.strip()
+]
 
 
 # Application definition
@@ -41,6 +57,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    'drf_spectacular',
     'accounts',
 ]
 
@@ -121,16 +138,34 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+# `python manage.py collectstatic` copies admin and Swagger CSS/JS here for the server to serve.
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
+# Locally, emails are printed in the terminal. On the server they go out over SMTP;
+# fill in the DJANGO_EMAIL_* values in .env once the project starts sending email.
+if DEBUG:
+    MAILERS = {
+        'default': {
+            'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+        },
+    }
+else:
+    MAILERS = {
+        'default': {
+            'BACKEND': 'django.core.mail.backends.smtp.EmailBackend',
+            'OPTIONS': {
+                'host': os.environ.get("DJANGO_EMAIL_HOST", "localhost"),
+                'port': int(os.environ.get("DJANGO_EMAIL_PORT", "587")),
+                'username': os.environ.get("DJANGO_EMAIL_USER", ""),
+                'password': os.environ.get("DJANGO_EMAIL_PASSWORD", ""),
+                'use_tls': True,
+            },
+        },
+    }
 
 AUTH_USER_MODEL = "accounts.User"
 
@@ -153,17 +188,40 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+# API docs at /api/docs/ (Swagger UI) and /api/schema/ (raw OpenAPI file).
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Tadreeb API",
+    "DESCRIPTION": "Backend API for the Tadreeb student training system.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
 }
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
 }
 
-# Hussein's Vite front-end runs on port 5173.
+# Hussein's Vite front-end runs on port 5173. On the server, add the deployed front-end's
+# address with DJANGO_CORS_ORIGINS (comma-separated, e.g. "https://tadreeb.netlify.app").
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+] + [
+    origin.strip()
+    for origin in os.environ.get("DJANGO_CORS_ORIGINS", "").split(",")
+    if origin.strip()
 ]
+
+# Django admin login over HTTPS needs the site's own address trusted for CSRF.
+CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS if host not in ("localhost", "127.0.0.1")]
+
+if not DEBUG:
+    # Live site is HTTPS only, so only send cookies over HTTPS. The HTTP -> HTTPS redirect
+    # is done by PythonAnywhere's "Force HTTPS" switch (docs/DEPLOY.md), not by Django.
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 # Tadreeb business rules. Values in [brackets] in the SRS are still open team decisions.
 # BR-01 / D-01: credit hours needed to be eligible (proposed default, college to confirm).
