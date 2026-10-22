@@ -7,7 +7,7 @@
 ```
 tadreeb_full/
 ├── frontend/      ← واجهات React (حسين + عبد الله)
-├── backend/       ← خادم Django (وفاء) — لسا فاضي
+├── backend/       ← خادم Django (وفاء + مريم)
 ├── docs/          ← الاتفاقات والأدلة
 └── .github/       ← قالب الـ Pull Request
 ```
@@ -25,4 +25,4 @@ tadreeb_full/
 |---|---|
 | Front-End — بوابة الطالب | حسين |
 | Front-End — بوابة الإدارة والمشرفين وجهة التدريب | عبد الله أبو الليل |
-| Back-End — Django وقاعدة البيانات والـ APIs | وفاء |
+| Back-End — Django وقاعدة البيانات والـ APIs | وفاء ومريم |
