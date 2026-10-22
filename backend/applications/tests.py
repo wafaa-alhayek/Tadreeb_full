@@ -5,6 +5,7 @@ from accounts.models import User
 from .status import TRANSITIONS, Status, TransitionError, allowed_next, check_transition
 
 STUDENT = User.Role.STUDENT
+SUPERVISOR = User.Role.SUPERVISOR
 COORDINATOR = User.Role.COORDINATOR
 ADMIN = User.Role.ADMIN
 PROVIDER = User.Role.PROVIDER
@@ -52,6 +53,19 @@ class StatusEngineTests(SimpleTestCase):
     def test_provider_has_no_transitions_yet(self):
         for source, target in TRANSITIONS:
             self.assertEqual(allowed_next(source, PROVIDER), [])
+
+    def test_supervisor_reviews_and_allocates(self):
+        # FR-13 / FR-14
+        check_transition(Status.SUBMITTED, Status.UNDER_REVIEW, SUPERVISOR)
+        check_transition(Status.UNDER_REVIEW, Status.ACCEPTED, SUPERVISOR)
+        check_transition(Status.ACCEPTED, Status.ASSIGNED, SUPERVISOR)
+
+    def test_rejecting_needs_a_reason(self):
+        # FR-13
+        for reason in ("", "   "):
+            with self.assertRaisesMessage(TransitionError, "سبب الرفض"):
+                check_transition(Status.UNDER_REVIEW, Status.REJECTED, SUPERVISOR, reason)
+        check_transition(Status.UNDER_REVIEW, Status.REJECTED, SUPERVISOR, "المعدل أقل من المطلوب")
 
     def test_error_message_uses_arabic_status_names(self):
         with self.assertRaisesMessage(TransitionError, "«مسودة» إلى «مقبول»"):
