@@ -9,7 +9,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from accounts.views import DepartmentViewSet, StudentViewSet, me, my_student_profile
-
+from providers.views import ProviderViewSet
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
@@ -20,7 +20,7 @@ def health(request):
 router = DefaultRouter()
 router.register("students", StudentViewSet, basename="student")
 router.register("departments", DepartmentViewSet, basename="department")
-
+router.register("providers", ProviderViewSet, basename="provider")
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/health/", health),
