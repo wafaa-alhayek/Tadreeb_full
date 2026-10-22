@@ -28,6 +28,7 @@ def health(request):
 router = DefaultRouter()
 router.register("students", StudentViewSet, basename="student")
 router.register("departments", DepartmentViewSet, basename="department")
+router.register("providers", ProviderViewSet, basename="provider")
 router.register("opportunities", OpportunityViewSet, basename="opportunity")
 router.register("notifications", NotificationViewSet, basename="notification")
 urlpatterns = [
