@@ -14,7 +14,7 @@ from rest_framework import serializers
 
 from accounts.views import DepartmentViewSet, StudentViewSet, me, my_student_profile
 from notifications.views import NotificationViewSet
-from providers.views import ProviderViewSet
+from providers.views import OpportunityViewSet, ProviderViewSet
 
 @extend_schema(
     responses=inline_serializer("Health", {"status": serializers.CharField()}),
@@ -28,7 +28,7 @@ def health(request):
 router = DefaultRouter()
 router.register("students", StudentViewSet, basename="student")
 router.register("departments", DepartmentViewSet, basename="department")
-router.register("providers", ProviderViewSet, basename="provider")
+router.register("opportunities", OpportunityViewSet, basename="opportunity")
 router.register("notifications", NotificationViewSet, basename="notification")
 urlpatterns = [
     # The bare address has no page of its own; send visitors to the API docs.
