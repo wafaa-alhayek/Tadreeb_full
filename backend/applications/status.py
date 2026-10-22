@@ -28,9 +28,9 @@ class Status(models.TextChoices):
 
 
 STUDENT = {User.Role.STUDENT}
-# Who reviews and distributes applications. Open team decision: should the
-# academic supervisor or the training provider also accept/reject?
-REVIEWERS = {User.Role.COORDINATOR, User.Role.ADMIN}
+# FR-13 / FR-14: supervisors review and allocate applications; the coordinator
+# and admin can do the same.
+REVIEWERS = {User.Role.SUPERVISOR, User.Role.COORDINATOR, User.Role.ADMIN}
 
 # (from, to): the roles allowed to make that change. Anything not listed is forbidden.
 TRANSITIONS = {
@@ -57,11 +57,16 @@ def allowed_next(current, role):
     ]
 
 
-def check_transition(current, target, role):
-    """Raise TransitionError unless `role` may move an application from `current` to `target`."""
+def check_transition(current, target, role, reason=""):
+    """Raise TransitionError unless `role` may move an application from `current` to `target`.
+
+    `reason` is the note the reviewer writes; FR-13 requires one when rejecting.
+    """
     if (current, target) not in TRANSITIONS:
         raise TransitionError(
             f"لا يمكن نقل الطلب من «{Status(current).label}» إلى «{Status(target).label}»."
         )
     if role not in TRANSITIONS[(current, target)]:
         raise TransitionError("ليس لديك صلاحية لهذا التغيير.")
+    if target == Status.REJECTED and not reason.strip():
+        raise TransitionError("يجب كتابة سبب الرفض.")
