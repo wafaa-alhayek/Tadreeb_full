@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'accounts',
     'providers',
+    'applications',
 ]
 
 MIDDLEWARE = [
