@@ -22,6 +22,13 @@ class Provider(models.Model):
         "الحالة", max_length=20, choices=Status.choices, default=Status.APPROVED
     )
 
+    accepted_specializations = models.ManyToManyField(
+        "accounts.Specialization",
+        blank=True,
+        related_name="providers",
+        verbose_name="التخصصات المقبولة",
+    )
+         
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

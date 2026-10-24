@@ -5,6 +5,9 @@ from .models import Opportunity, Provider
 
 class ProviderSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
+    accepted_specialization_names = serializers.SlugRelatedField(
+        source="accepted_specializations", slug_field="name", many=True, read_only=True
+    )
 
     class Meta:
         model = Provider
@@ -18,6 +21,8 @@ class ProviderSerializer(serializers.ModelSerializer):
             "contact_phone",
             "contact_email",
             "capacity",
+            "accepted_specializations",
+            "accepted_specialization_names",
             "status",
             "status_display",
             "created_at",

@@ -227,3 +227,40 @@ class OpportunityApiTests(APITestCase):
             "/api/opportunities/", self.new_opportunity(provider=self.my_provider.id)
         )
         self.assertEqual(response.status_code, 403)
+
+
+class AcceptedSpecializationsTests(APITestCase):
+    def setUp(self):
+        self.coordinator = User.objects.create_user(
+            username="coordinator", password="Test12345!", role=User.Role.COORDINATOR
+        )
+        department = Department.objects.create(name="تكنولوجيا المعلومات")
+        self.programming = Specialization.objects.create(department=department, name="برمجة")
+        self.networks = Specialization.objects.create(department=department, name="شبكات")
+        self.provider = Provider.objects.create(
+            name="شركة التقنية المتقدمة",
+            sector="تكنولوجيا المعلومات",
+            city="غزة",
+            contact_name="أحمد خالد",
+            contact_phone="0599123456",
+        )
+        self.client.force_authenticate(self.coordinator)
+
+    def test_coordinator_sets_accepted_specializations(self):
+        response = self.client.patch(
+            f"/api/providers/{self.provider.id}/",
+            {"accepted_specializations": [self.programming.id, self.networks.id]},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.provider.accepted_specializations.count(), 2)
+
+    def test_list_shows_specialization_names(self):
+        self.provider.accepted_specializations.add(self.programming)
+        response = self.client.get(f"/api/providers/{self.provider.id}/")
+        self.assertEqual(response.data["accepted_specializations"], [self.programming.id])
+        self.assertEqual(response.data["accepted_specialization_names"], ["برمجة"])
+
+    def test_accepted_specializations_are_optional(self):
+        response = self.client.get(f"/api/providers/{self.provider.id}/")
+        self.assertEqual(response.data["accepted_specializations"], [])

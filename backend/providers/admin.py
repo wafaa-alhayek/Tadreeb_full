@@ -8,6 +8,7 @@ class ProviderAdmin(admin.ModelAdmin):
     list_display = ("name", "sector", "city", "capacity", "status")
     list_filter = ("status", "sector", "city")
     search_fields = ("name", "contact_name")
+    filter_horizontal = ("accepted_specializations",)
 
 
 @admin.register(Opportunity)
