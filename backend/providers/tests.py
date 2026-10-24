@@ -1,6 +1,6 @@
 from rest_framework.test import APITestCase
 
-from accounts.models import Department, Specialization, User
+from accounts.models import Department, Specialization, StudentProfile, User
 
 from .models import Opportunity, Provider
 
@@ -93,6 +93,37 @@ class ProviderApiTests(APITestCase):
         self.assertEqual(response.status_code, 403)
         self.assertTrue(Provider.objects.filter(id=self.approved.id).exists())
 
+    def test_provider_updates_its_own_record(self):
+        self.client.force_authenticate(self.provider_user)
+        response = self.client.patch(
+            f"/api/providers/{self.approved.id}/", {"contact_phone": "0590000000"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.approved.refresh_from_db()
+        self.assertEqual(self.approved.contact_phone, "0590000000")
+
+    def test_provider_cannot_change_its_own_status(self):
+        self.client.force_authenticate(self.provider_user)
+        self.approved.status = Provider.Status.SUSPENDED
+        self.approved.save()
+        self.client.patch(f"/api/providers/{self.approved.id}/", {"status": "approved"})
+        self.approved.refresh_from_db()
+        self.assertEqual(self.approved.status, Provider.Status.SUSPENDED)
+
+    def test_provider_cannot_edit_another_provider(self):
+        self.client.force_authenticate(self.provider_user)
+        response = self.client.patch(
+            f"/api/providers/{self.suspended.id}/", {"contact_phone": "0590000000"}
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_provider_cannot_add_or_delete_providers(self):
+        self.client.force_authenticate(self.provider_user)
+        response = self.client.post("/api/providers/", {"name": "جهة"})
+        self.assertEqual(response.status_code, 403)
+        response = self.client.delete(f"/api/providers/{self.approved.id}/")
+        self.assertEqual(response.status_code, 403)
+
 
 class OpportunityApiTests(APITestCase):
     def setUp(self):
@@ -109,6 +140,12 @@ class OpportunityApiTests(APITestCase):
         department = Department.objects.create(name="تكنولوجيا المعلومات")
         self.programming = Specialization.objects.create(department=department, name="برمجة")
         self.networks = Specialization.objects.create(department=department, name="شبكات")
+        self.profile = StudentProfile.objects.create(
+            user=self.student,
+            department=department,
+            specialization=self.programming,
+            completed_credit_hours=95,
+        )
 
         self.my_provider = Provider.objects.create(
             name="شركة التقنية المتقدمة",
@@ -220,6 +257,20 @@ class OpportunityApiTests(APITestCase):
         self.client.force_authenticate(self.provider_user)
         response = self.client.patch(f"/api/opportunities/{self.network.id}/", {"seats": 10})
         self.assertEqual(response.status_code, 404)
+
+    def test_ineligible_student_sees_the_reason(self):
+        self.profile.completed_credit_hours = 60
+        self.profile.save()
+        self.client.force_authenticate(self.student)
+        response = self.client.get("/api/opportunities/")
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("60", str(response.data["detail"]))
+
+    def test_student_without_profile_cannot_browse(self):
+        self.profile.delete()
+        self.client.force_authenticate(User.objects.get(id=self.student.id))
+        response = self.client.get("/api/opportunities/")
+        self.assertEqual(response.status_code, 403)
 
     def test_student_cannot_publish(self):
         self.client.force_authenticate(self.student)
