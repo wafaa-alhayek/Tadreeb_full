@@ -37,10 +37,10 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 
 | الجدول | الحقول | FR / BR |
 |---|---|---|
-| `Application` | `student`، `status`، `status_reason` (سبب الرفض / الانسحاب)، `supervisor` (FK لمستخدم دوره supervisor)، `submitted_at`، `created_at`، `updated_at` | FR-11–13, 18 |
-| `Preference` | `application`، `opportunity`، `rank` (1–3) | FR-11، BR-03 (3 رغبات، D-04) |
-| `ApplicationDocument` | `application`، `title`، `file` (PDF/JPG/PNG حتى 5MB) | FR-11، BR-08 |
-| `StatusChange` | `application`، `from_status`، `to_status`، `changed_by`، `reason`، `created_at` | FR-12 (الطالب بيشوف المسار)، FR-40 |
+| `Application` ✅ | `student`، `status`، `status_reason` (سبب الرفض / الانسحاب)، `supervisor` (FK لمستخدم دوره supervisor)، `submitted_at`، `created_at`، `updated_at` | FR-11–13, 18 |
+| `Preference` ✅ | `application`، `opportunity`، `rank` (1–3) | FR-11، BR-03 (3 رغبات، D-04) |
+| `ApplicationDocument` ✅ | `application`، `title`، `file` (PDF/JPG/PNG حتى 5MB) | FR-11، BR-08 |
+| `StatusChange` ✅ | `application`، `from_status`، `to_status`، `changed_by`، `reason`، `created_at` | FR-12 (الطالب بيشوف المسار)، FR-40 |
 | `Placement` | `application`، `opportunity`، `start_date`، `end_date`، `provider_confirmed_at`، `closed_at`، `close_reason`، `is_active` | FR-14, 16, 30–32، BR-02 |
 | `ExceptionRequest` | `application`، `kind` (change_provider / withdrawal / extension / issue)، `requested_by`، `reason`، `status`، `new_opportunity`، `new_end_date`، `decided_by`، `decision_note` | FR-30–33 |
 
@@ -81,7 +81,7 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 
 | | وفاء | مريم |
 |---|---|---|
-| 1 | `Application` + `Preference` + `ApplicationDocument` | ✅ `Opportunity`، وباقي `accepted_specializations` |
+| 1 | ✅ `Application` + `Preference` + `ApplicationDocument` + `StatusChange` | ✅ `Opportunity` + `accepted_specializations` |
 | 2 | المراجعة والتوزيع: `StatusChange`، `Placement` + `Opportunity.free_seats()`، endpoint تغيير الحالة + الإشعارات | استيراد Excel (FR-03) |
 | 3 | `ExceptionRequest` | كتاب التوجيه (FR-17)، `training` (FR-19–24) |
 | 4 | `evaluations` + الدرجة النهائية | الشهادات، Audit Log، لوحات الإحصائيات والتصدير |

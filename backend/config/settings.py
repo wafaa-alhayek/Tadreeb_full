@@ -200,6 +200,12 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Backend API for the Tadreeb student training system.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Several models have a field called "status"; give each choice list its own name in the docs.
+    "ENUM_NAME_OVERRIDES": {
+        "ApplicationStatusEnum": "applications.status.Status",
+        "ProviderStatusEnum": "providers.models.Provider.Status",
+        "OpportunityStatusEnum": "providers.models.Opportunity.Status",
+    },
 }
 
 SIMPLE_JWT = {
@@ -231,3 +237,5 @@ if not DEBUG:
 TADREEB_MIN_CREDIT_HOURS = 90
 # BR-01 / D-01: no GPA condition unless the college requires one (e.g. Decimal("2.00")).
 TADREEB_MIN_GPA = None
+# BR-03 / D-04: how many opportunities a student may rank in one application.
+TADREEB_MAX_PREFERENCES = 3

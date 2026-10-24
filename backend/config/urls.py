@@ -13,6 +13,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework import serializers
 
 from accounts.views import DepartmentViewSet, StudentViewSet, me, my_student_profile
+from applications.views import ApplicationDocumentViewSet, ApplicationViewSet
 from notifications.views import NotificationViewSet
 from providers.views import OpportunityViewSet, ProviderViewSet
 
@@ -31,6 +32,8 @@ router.register("departments", DepartmentViewSet, basename="department")
 router.register("providers", ProviderViewSet, basename="provider")
 router.register("opportunities", OpportunityViewSet, basename="opportunity")
 router.register("notifications", NotificationViewSet, basename="notification")
+router.register("applications", ApplicationViewSet, basename="application")
+router.register("application-documents", ApplicationDocumentViewSet, basename="application-document")
 urlpatterns = [
     # The bare address has no page of its own; send visitors to the API docs.
     path("", RedirectView.as_view(pattern_name="swagger-ui")),
