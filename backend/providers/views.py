@@ -5,6 +5,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from accounts.eligibility import check_eligibility
 from accounts.models import User
 from accounts.permissions import HasRole, IsCoordinator
 
@@ -14,8 +15,12 @@ from .serializers import OpportunitySerializer, ProviderSerializer
 MANAGERS = (User.Role.COORDINATOR, User.Role.ADMIN)
 
 
+class CanEditProvider(HasRole):
+    roles = (User.Role.PROVIDER, *MANAGERS)
+
+
 class ProviderViewSet(viewsets.ModelViewSet):
-    """FR-07: training providers. Coordinators manage them; others only read."""
+    """FR-07/FR-08: coordinators manage providers; a provider edits its own record."""
 
     serializer_class = ProviderSerializer
     authentication_classes = [JWTAuthentication, SessionAuthentication]
@@ -36,7 +41,16 @@ class ProviderViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ("list", "retrieve"):
             return [IsAuthenticated()]
+        if self.action in ("update", "partial_update"):
+            return [CanEditProvider()]
         return [IsCoordinator()]
+
+    def perform_update(self, serializer):
+        if self.request.user.role == User.Role.PROVIDER:
+            # Only the coordinator approves or suspends a provider.
+            serializer.save(status=serializer.instance.status)
+        else:
+            serializer.save()
 
 
 class CanPublishOpportunities(HasRole):
@@ -62,6 +76,8 @@ class OpportunityViewSet(viewsets.ModelViewSet):
         if user.role == User.Role.PROVIDER:
             opportunities = opportunities.filter(provider__user=user)
         elif user.role not in MANAGERS:
+            if user.role == User.Role.STUDENT:
+                self.require_eligible_student(user)
             opportunities = opportunities.filter(
                 status=Opportunity.Status.OPEN,
                 provider__status=Provider.Status.APPROVED,
@@ -82,6 +98,15 @@ class OpportunityViewSet(viewsets.ModelViewSet):
         if self.action in ("list", "retrieve"):
             return [IsAuthenticated()]
         return [CanPublishOpportunities()]
+
+    def require_eligible_student(self, user):
+        """FR-10 + FR-06: only eligible students browse, others see why not."""
+        profile = getattr(user, "student_profile", None)
+        if profile is None:
+            raise PermissionDenied("لا يوجد ملف طالب لهذا الحساب.")
+        is_eligible, reasons = check_eligibility(profile)
+        if not is_eligible:
+            raise PermissionDenied(" ".join(reasons))
 
     def own_provider(self):
         provider = getattr(self.request.user, "provider_profile", None)
