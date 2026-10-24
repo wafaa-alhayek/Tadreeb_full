@@ -29,9 +29,9 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 | الجدول | الحقول | FR |
 |---|---|---|
 | `Provider` ✅ | موجود. **ناقصه:** `accepted_specializations` (ManyToMany لـ `accounts.Specialization`) | FR-07, 08 |
-| `Opportunity` | `provider`، `title`، `description`، `tasks`، `conditions`، `specialization` (FK لـ `accounts.Specialization`)، `seats`، `start_date`، `end_date`، `location`، `is_open` | FR-09, 10 |
+| `Opportunity` ✅ | `provider`، `specialization` (FK لـ `accounts.Specialization`)، `title`، `description`، `tasks`، `requirements`، `seats`، `start_date`، `end_date`، `location`، `status` (`open` / `closed`) | FR-09, 10 |
 
-**شو بتحتاج وفاء من `Opportunity`:** الجدول نفسه بالأسماء اللي فوق، ودالة `free_seats()` = `seats` ناقص عدد الـ `Placement` الفعّالة على هالفرصة. **هاد أول إشي لازم ينْدمج**، لأن الطلبات كلها مربوطة فيه.
+**`free_seats()`** (المقاعد الفاضية = `seats` ناقص عدد الـ `Placement` الفعّالة على الفرصة) بتعتمد على `Placement`، فـ **وفاء بتضيفها لـ `Opportunity` بنفس الـ PR تبع `Placement`**.
 
 ### `applications`: وفاء
 
@@ -81,8 +81,8 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 
 | | وفاء | مريم |
 |---|---|---|
-| 1 | `Application` + `Preference` + `ApplicationDocument` (بعد `Opportunity`) | **`Opportunity`** + `accepted_specializations` |
-| 2 | المراجعة والتوزيع: `StatusChange`، `Placement`، endpoint تغيير الحالة + الإشعارات | استيراد Excel (FR-03) |
+| 1 | `Application` + `Preference` + `ApplicationDocument` | ✅ `Opportunity`، وباقي `accepted_specializations` |
+| 2 | المراجعة والتوزيع: `StatusChange`، `Placement` + `Opportunity.free_seats()`، endpoint تغيير الحالة + الإشعارات | استيراد Excel (FR-03) |
 | 3 | `ExceptionRequest` | كتاب التوجيه (FR-17)، `training` (FR-19–24) |
 | 4 | `evaluations` + الدرجة النهائية | الشهادات، Audit Log، لوحات الإحصائيات والتصدير |
 
