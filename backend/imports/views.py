@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.http import HttpResponse
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -7,7 +8,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from accounts.models import StudentProfile
 from accounts.permissions import IsCoordinator
+from audit.models import AuditLog, log_action
 
 from .serializers import StudentImportResultSerializer, StudentImportSerializer
 from .students import XLSX_CONTENT_TYPE, build_template, import_students
@@ -55,5 +58,11 @@ class StudentImportView(APIView):
         serializer = StudentImportSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         dry_run = request.query_params.get("dry_run", "").lower() in ("1", "true")
-        result = import_students(serializer.validated_data["file"], dry_run=dry_run)
+        file = serializer.validated_data["file"]
+        with transaction.atomic():  # The students and their log line are saved together.
+            result = import_students(file, dry_run=dry_run)
+            if result["saved"]:
+                log_action(request, AuditLog.Action.IMPORT, StudentProfile, {
+                    "file": file.name, "created": result["created"], "updated": result["updated"],
+                })
         return Response(result, status=400 if result["errors"] else 200)
