@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     'providers',
     'applications',
     'notifications',
+    'imports',
 ]
 
 MIDDLEWARE = [
