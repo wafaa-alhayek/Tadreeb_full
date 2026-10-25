@@ -50,5 +50,6 @@ urlpatterns = [
     path("api/auth/me/", me),
     # Before the router, so "me" isn't read as a student id.
     path("api/students/me/", my_student_profile),
+    path("api/imports/", include("imports.urls")),
     path("api/", include(router.urls)),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
