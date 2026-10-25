@@ -8,6 +8,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from accounts.eligibility import check_eligibility
 from accounts.models import User
 from accounts.permissions import HasRole, IsCoordinator
+from audit.mixins import AuditMixin
 
 from .models import Opportunity, Provider
 from .serializers import OpportunitySerializer, ProviderSerializer
@@ -19,7 +20,7 @@ class CanEditProvider(HasRole):
     roles = (User.Role.PROVIDER, *MANAGERS)
 
 
-class ProviderViewSet(viewsets.ModelViewSet):
+class ProviderViewSet(AuditMixin, viewsets.ModelViewSet):
     """FR-07/FR-08: coordinators manage providers; a provider edits its own record."""
 
     serializer_class = ProviderSerializer
@@ -48,16 +49,16 @@ class ProviderViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         if self.request.user.role == User.Role.PROVIDER:
             # Only the coordinator approves or suspends a provider.
-            serializer.save(status=serializer.instance.status)
+            self.save_with_log(serializer, status=serializer.instance.status)
         else:
-            serializer.save()
+            self.save_with_log(serializer)
 
 
 class CanPublishOpportunities(HasRole):
     roles = (User.Role.PROVIDER, *MANAGERS)
 
 
-class OpportunityViewSet(viewsets.ModelViewSet):
+class OpportunityViewSet(AuditMixin, viewsets.ModelViewSet):
     """FR-09/FR-10: providers and coordinators publish; students browse open ones.
 
     Filters: ?specialization=<id>&location=<text>&start_after=YYYY-MM-DD
@@ -116,14 +117,14 @@ class OpportunityViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         if self.request.user.role == User.Role.PROVIDER:
-            serializer.save(provider=self.own_provider())
+            self.save_with_log(serializer, provider=self.own_provider())
         elif "provider" not in serializer.validated_data:
             raise serializers.ValidationError({"provider": "اختر جهة التدريب."})
         else:
-            serializer.save()
+            self.save_with_log(serializer)
 
     def perform_update(self, serializer):
         if self.request.user.role == User.Role.PROVIDER:
-            serializer.save(provider=self.own_provider())
+            self.save_with_log(serializer, provider=self.own_provider())
         else:
-            serializer.save()
+            self.save_with_log(serializer)
