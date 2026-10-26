@@ -17,6 +17,7 @@ from applications.views import ApplicationDocumentViewSet, ApplicationViewSet
 from audit.views import AuditLogViewSet
 from notifications.views import NotificationViewSet
 from providers.views import OpportunityViewSet, ProviderViewSet
+from training.views import DailyLogViewSet
 
 @extend_schema(
     responses=inline_serializer("Health", {"status": serializers.CharField()}),
@@ -36,6 +37,7 @@ router.register("notifications", NotificationViewSet, basename="notification")
 router.register("applications", ApplicationViewSet, basename="application")
 router.register("application-documents", ApplicationDocumentViewSet, basename="application-document")
 router.register("audit-logs", AuditLogViewSet, basename="audit-log")
+router.register("daily-logs", DailyLogViewSet, basename="daily-log")
 urlpatterns = [
     # The bare address has no page of its own; send visitors to the API docs.
     path("", RedirectView.as_view(pattern_name="swagger-ui")),
