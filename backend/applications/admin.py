@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Application, ApplicationDocument, Preference, StatusChange
+from .models import Application, ApplicationDocument, Placement, Preference, StatusChange
 
 
 class PreferenceInline(admin.TabularInline):
@@ -10,6 +10,11 @@ class PreferenceInline(admin.TabularInline):
 
 class ApplicationDocumentInline(admin.TabularInline):
     model = ApplicationDocument
+    extra = 0
+
+
+class PlacementInline(admin.TabularInline):
+    model = Placement
     extra = 0
 
 
@@ -29,4 +34,4 @@ class ApplicationAdmin(admin.ModelAdmin):
     list_filter = ("status",)
     search_fields = ("student__username", "student__first_name", "student__last_name")
     readonly_fields = ("status", "submitted_at")  # statuses only change through the rules
-    inlines = [PreferenceInline, ApplicationDocumentInline, StatusChangeInline]
+    inlines = [PreferenceInline, ApplicationDocumentInline, PlacementInline, StatusChangeInline]

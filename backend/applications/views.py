@@ -1,44 +1,112 @@
-from drf_spectacular.utils import extend_schema
+from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
 from rest_framework import mixins, serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from accounts.eligibility import check_eligibility
-from accounts.models import StudentProfile
-from accounts.permissions import IsStudent
+from accounts.models import StudentProfile, User
+from accounts.permissions import HasRole, IsProvider, IsStudent
 
+from . import workflow
 from .models import Application, ApplicationDocument
 from .serializers import ApplicationDocumentSerializer, ApplicationSerializer, check_opportunities
-from .status import Status, TransitionError
+from .status import Status
+
+
+class IsReviewer(HasRole):
+    """Section 2.2: review and allocate applications."""
+
+    roles = (User.Role.SUPERVISOR, User.Role.COORDINATOR)
+
+
+class IsTrainingCoordinator(HasRole):
+    """FR-18: only the coordinator links students to supervisors."""
+
+    roles = (User.Role.COORDINATOR,)
+
+
+# The review moves that need nothing but an optional reason. Allocation has its own action
+# because it also needs an opportunity.
+REVIEW_TARGETS = [
+    Status.UNDER_REVIEW,
+    Status.ACCEPTED,
+    Status.REJECTED,
+    Status.NEEDS_CHANGES,
+    Status.WITHDRAWN,
+]
 
 
 class ApplicationViewSet(viewsets.ModelViewSet):
-    """/api/applications/: a student builds, edits and submits their own application (FR-11, FR-12).
+    """/api/applications/: one endpoint, and each role sees only what Section 2.2 allows.
 
-    Reviewing and allocating (FR-13, FR-14) come in the next step.
+    - student: builds, edits and submits their own application (FR-11, FR-12)
+    - supervisor: the students assigned to them (FR-13, FR-14)
+    - coordinator: every submitted application; assigns supervisors (FR-18)
+    - provider: the students allocated to it (FR-16, NFR-18)
+    - admin: read only
+    Drafts are visible to the student only (Section 2.5). Filter: ?status=submitted
     """
 
     serializer_class = ApplicationSerializer
-    permission_classes = [IsStudent]
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Application.objects.none()
-        return Application.objects.filter(student=self.request.user).prefetch_related(
+
+        user = self.request.user
+        applications = Application.objects.select_related("student", "supervisor").prefetch_related(
             "preferences__opportunity__provider", "documents", "history"
         )
+        if user.role == User.Role.STUDENT:
+            applications = applications.filter(student=user)
+        else:
+            applications = applications.exclude(status=Status.DRAFT)
+            if user.role == User.Role.SUPERVISOR:
+                applications = applications.filter(supervisor=user)
+            elif user.role == User.Role.PROVIDER:
+                applications = applications.filter(placements__opportunity__provider__user=user).distinct()
+            elif user.role not in (User.Role.COORDINATOR, User.Role.ADMIN):
+                applications = applications.none()
+
+        status = self.request.query_params.get("status")
+        if status:
+            applications = applications.filter(status=status)
+        return applications
+
+    def get_permissions(self):
+        if self.action in ("create", "partial_update", "destroy", "submit"):
+            return [IsStudent()]
+        if self.action in ("transition", "allocate"):
+            return [IsReviewer()]
+        if self.action == "assign_supervisor":
+            return [IsTrainingCoordinator()]
+        if self.action == "confirm":
+            return [IsProvider()]
+        return [IsAuthenticated()]
+
+    @extend_schema(parameters=[OpenApiParameter("status", str, description="e.g. submitted")])
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
     def perform_destroy(self, application):
         if application.status != Status.DRAFT:
             raise serializers.ValidationError("يمكن حذف المسودة فقط.")
         application.delete()
 
+    def fresh(self, application):
+        """The application reloaded, so the response shows the new history and placement."""
+        return Response(self.get_serializer(self.get_queryset().get(pk=application.pk)).data)
+
+    # --- student ---
+
     @extend_schema(request=None, responses=ApplicationSerializer)
     @action(detail=True, methods=["post"])
     def submit(self, request, pk=None):
-        """POST /api/applications/<id>/submit/: send the application for review."""
+        """POST /api/applications/<id>/submit/: send the application for review (FR-11)."""
         application = self.get_object()
 
         profile, _ = StudentProfile.objects.get_or_create(user=request.user)
@@ -52,12 +120,76 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         # An opportunity may have closed since the draft was saved.
         check_opportunities(request.user, opportunity_ids)
 
-        try:
-            application.move_to(Status.SUBMITTED, request.user)
-        except TransitionError as error:
-            raise serializers.ValidationError(str(error))
-        # Reload so the response includes the new history entry, not the pre-fetched copy.
-        return Response(self.get_serializer(self.get_object()).data)
+        workflow.change_status(request, application, Status.SUBMITTED)
+        return self.fresh(application)
+
+    # --- supervisor / coordinator ---
+
+    @extend_schema(
+        request=inline_serializer(
+            "Transition",
+            {
+                "status": serializers.ChoiceField(choices=REVIEW_TARGETS),
+                "reason": serializers.CharField(required=False, allow_blank=True),
+            },
+        ),
+        responses=ApplicationSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def transition(self, request, pk=None):
+        """POST /api/applications/<id>/transition/: review moves (FR-13) and withdrawal (FR-31).
+
+        {"status": "under_review" | "accepted" | "rejected" | "needs_changes" | "withdrawn",
+         "reason": "..."}; rejection and withdrawal need a reason.
+        """
+        application = self.get_object()
+        target = request.data.get("status")
+        reason = request.data.get("reason", "")
+        if target not in REVIEW_TARGETS:
+            raise serializers.ValidationError({"status": f"اختر واحدة من: {', '.join(REVIEW_TARGETS)}"})
+
+        if target == Status.WITHDRAWN:
+            workflow.withdraw(request, application, reason)
+        else:
+            workflow.change_status(request, application, target, reason)
+        return self.fresh(application)
+
+    @extend_schema(
+        request=inline_serializer("Allocate", {"opportunity": serializers.IntegerField()}),
+        responses=ApplicationSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def allocate(self, request, pk=None):
+        """POST /api/applications/<id>/allocate/: place an accepted student (FR-14).
+
+        {"opportunity": 7}. The opportunity must be open, match the student's specialization
+        and have a free seat. It doesn't have to be one of the student's preferences.
+        """
+        application = self.get_object()
+        workflow.allocate(request, application, request.data.get("opportunity"))
+        return self.fresh(application)
+
+    @extend_schema(
+        request=inline_serializer("AssignSupervisor", {"supervisor": serializers.IntegerField()}),
+        responses=ApplicationSerializer,
+    )
+    @action(detail=True, methods=["post"], url_path="assign-supervisor")
+    def assign_supervisor(self, request, pk=None):
+        """POST /api/applications/<id>/assign-supervisor/: {"supervisor": 4} (FR-18)."""
+        application = self.get_object()
+        supervisor = get_object_or_404(User, pk=request.data.get("supervisor"))
+        workflow.assign_supervisor(request, application, supervisor)
+        return self.fresh(application)
+
+    # --- provider ---
+
+    @extend_schema(request=None, responses=ApplicationSerializer)
+    @action(detail=True, methods=["post"])
+    def confirm(self, request, pk=None):
+        """POST /api/applications/<id>/confirm/: the provider accepts the allocated student (FR-16)."""
+        application = self.get_object()
+        workflow.confirm_placement(request, application)
+        return self.fresh(application)
 
 
 class ApplicationDocumentViewSet(
