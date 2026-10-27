@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import Application, ApplicationDocument, Placement, Preference, StatusChange
+from .models import (
+    Application,
+    ApplicationDocument,
+    ExceptionRequest,
+    Placement,
+    Preference,
+    StatusChange,
+)
 
 
 class PreferenceInline(admin.TabularInline):
@@ -35,3 +42,10 @@ class ApplicationAdmin(admin.ModelAdmin):
     search_fields = ("student__username", "student__first_name", "student__last_name")
     readonly_fields = ("status", "submitted_at")  # statuses only change through the rules
     inlines = [PreferenceInline, ApplicationDocumentInline, PlacementInline, StatusChangeInline]
+
+
+@admin.register(ExceptionRequest)
+class ExceptionRequestAdmin(admin.ModelAdmin):
+    list_display = ("application", "kind", "status", "requested_by", "created_at")
+    list_filter = ("kind", "status")
+    readonly_fields = ("status", "decided_by", "decided_at")  # decisions go through exceptions.py

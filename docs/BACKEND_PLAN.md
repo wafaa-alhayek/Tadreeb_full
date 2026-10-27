@@ -42,7 +42,7 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 | `ApplicationDocument` ✅ | `application`، `title`، `file` (PDF/JPG/PNG حتى 5MB) | FR-11، BR-08 |
 | `StatusChange` ✅ | `application`، `from_status`، `to_status`، `changed_by`، `reason`، `created_at` | FR-12 (الطالب بيشوف المسار)، FR-40 |
 | `Placement` ✅ | `application`، `opportunity`، `start_date`، `end_date`، `provider_confirmed_at`، `closed_at`، `close_reason`، `is_active` | FR-14, 16, 30–32، BR-02 |
-| `ExceptionRequest` | `application`، `kind` (change_provider / withdrawal / extension / issue)، `requested_by`، `reason`، `status`، `new_opportunity`، `new_end_date`، `decided_by`، `decision_note` | FR-30–33 |
+| `ExceptionRequest` ✅ | `application`، `kind` (change_provider / withdrawal / extension / issue)، `requested_by`، `reason`، `status` (pending / supervisor_approved / approved / rejected / closed)، `new_opportunity`، `new_end_date`، `decided_by`، `decision_note`، `decided_at` | FR-30–33 |
 
 ### `training`: مريم
 
@@ -83,7 +83,7 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 |---|---|---|
 | 1 | ✅ `Application` + `Preference` + `ApplicationDocument` + `StatusChange` | ✅ `Opportunity` + `accepted_specializations` |
 | 2 | ✅ المراجعة والتوزيع: `Placement` + `free_seats()`، تعيين المشرف، تأكيد الجهة، الانسحاب + الإشعارات وسجل العمليات | ✅ استيراد Excel (FR-03)، ✅ سجل العمليات (FR-40)، ✅ السجل اليومي (FR-20) |
-| 3 | `ExceptionRequest` | كتاب التوجيه (FR-17)، `training` (FR-19–24) |
+| 3 | ✅ `ExceptionRequest`: تغيير الجهة، الانسحاب، التمديد، المشاكل | كتاب التوجيه (FR-17)، `training` (FR-19–24) |
 | 4 | `evaluations` + الدرجة النهائية | الشهادات، Audit Log، لوحات الإحصائيات والتصدير |
 
 ## قرارات لسا مفتوحة (Appendix A)
