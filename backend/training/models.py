@@ -7,7 +7,6 @@ from django.db import models
 
 class DailyLog(models.Model):
     """FR-20 / BR-05: one training day written by the student, then confirmed by the provider."""
-
     application = models.ForeignKey(
         "applications.Application", on_delete=models.CASCADE, related_name="daily_logs"
     )
@@ -85,3 +84,26 @@ class WeeklyGoal(models.Model):
 
     def __str__(self):
         return f"أسبوع {self.week_number}"
+class Visit(models.Model):
+    """FR-24: a field visit recorded by the academic supervisor."""
+
+    application = models.ForeignKey(
+        "applications.Application", on_delete=models.CASCADE, related_name="visits"
+    )
+    supervisor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="field_visits",
+    )
+    date = models.DateField()
+    notes = models.TextField()
+    follow_up = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+
+    def __str__(self):
+        return f"زيارة {self.application} - {self.date}"
