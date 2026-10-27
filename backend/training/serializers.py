@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from applications.status import ACTIVE_PLACEMENT, Status
 
-from .models import DailyLog, TrainingPlan, WeeklyGoal
+from .models import DailyLog, TrainingPlan, Visit, WeeklyGoal
 
 
 class DailyLogSerializer(serializers.ModelSerializer):
@@ -95,3 +95,30 @@ class TrainingPlanSerializer(serializers.ModelSerializer):
                 WeeklyGoal.objects.bulk_create([WeeklyGoal(plan=plan, **goal) for goal in goals])
             plan.save()
         return plan
+
+
+class VisitSerializer(serializers.ModelSerializer):
+    """FR-24: a field visit recorded by the student's academic supervisor."""
+
+    class Meta:
+        model = Visit
+        fields = ["id", "application", "supervisor", "date", "notes", "follow_up", "created_at"]
+        # The supervisor is the person who records the visit.
+        read_only_fields = ["supervisor", "created_at"]
+
+    def validate_application(self, application):
+        if self.instance is not None:
+            if application != self.instance.application:
+                raise serializers.ValidationError("لا يمكن تغيير طلب الزيارة.")
+            return application
+        user = self.context["request"].user
+        if application.supervisor_id != user.id:
+            raise serializers.ValidationError("هذا الطالب ليس من طلابك.")
+        if application.status not in ACTIVE_PLACEMENT:
+            raise serializers.ValidationError("تُسجَّل الزيارة بعد توزيع الطالب على جهة تدريب.")
+        return application
+
+    def validate_date(self, value):
+        if value > timezone.localdate():
+            raise serializers.ValidationError("لا يمكن تسجيل زيارة في المستقبل.")
+        return value

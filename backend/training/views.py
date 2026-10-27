@@ -7,8 +7,8 @@ from rest_framework.response import Response
 from accounts.models import User
 from accounts.permissions import HasRole, IsStudent, IsSupervisor
 
-from .models import DailyLog, TrainingPlan
-from .serializers import DailyLogSerializer, TrainingPlanSerializer
+from .models import DailyLog, TrainingPlan, Visit
+from .serializers import DailyLogSerializer, TrainingPlanSerializer, VisitSerializer
 
 
 class DailyLogViewSet(viewsets.ModelViewSet):
@@ -98,3 +98,32 @@ class TrainingPlanViewSet(
         plan.approved_by = request.user
         plan.save()
         return Response(self.get_serializer(plan).data)
+
+
+class VisitViewSet(
+    mixins.CreateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.ListModelMixin,
+    viewsets.GenericViewSet,
+):
+    """/api/visits/: the supervisor records field visits; the student can read theirs (FR-24)."""
+
+    serializer_class = VisitSerializer
+    http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update"):
+            return [IsSupervisor()]
+        return [IsStudentOrSupervisor()]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Visit.objects.none()
+        user = self.request.user
+        if user.role == User.Role.SUPERVISOR:
+            return Visit.objects.filter(application__supervisor=user)
+        return Visit.objects.filter(application__student=user)
+
+    def perform_create(self, serializer):
+        serializer.save(supervisor=self.request.user)
