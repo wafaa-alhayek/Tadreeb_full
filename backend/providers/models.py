@@ -104,3 +104,7 @@ class Opportunity(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.provider}"
+
+    def free_seats(self):
+        """FR-14: seats not yet taken by an active placement."""
+        return max(self.seats - self.placements.filter(is_active=True).count(), 0)

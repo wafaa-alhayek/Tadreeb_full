@@ -49,6 +49,10 @@ class Application(models.Model):
         """Section 2.5: once submitted the application is locked, unless sent back for changes."""
         return self.status in (Status.DRAFT, Status.NEEDS_CHANGES)
 
+    @property
+    def active_placement(self):
+        return self.placements.filter(is_active=True).select_related("opportunity__provider").first()
+
     def move_to(self, target, user=None, reason=""):
         """Change the status if the rules allow it, and record the change in the history.
 
@@ -107,6 +111,53 @@ class ApplicationDocument(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class Placement(models.Model):
+    """FR-14: where an allocated student actually trains.
+
+    Its own table so that changing provider (FR-30) closes the old placement and opens a
+    new one, keeping the old one's history and hours (D-12). One active placement per
+    application, and so per student (BR-02).
+    """
+
+    application = models.ForeignKey(
+        Application, on_delete=models.CASCADE, related_name="placements"
+    )
+    opportunity = models.ForeignKey(
+        "providers.Opportunity", on_delete=models.PROTECT, related_name="placements"
+    )
+    start_date = models.DateField()
+    end_date = models.DateField()  # FR-32 extensions change this
+    # FR-16: the provider confirmed it accepts the student.
+    provider_confirmed_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+    close_reason = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["application"],
+                condition=models.Q(is_active=True),
+                name="one_active_placement_per_application",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.application.student.username} @ {self.opportunity}"
+
+    @property
+    def provider(self):
+        return self.opportunity.provider
+
+    def close(self, reason):
+        self.is_active = False
+        self.closed_at = timezone.now()
+        self.close_reason = reason
+        self.save()
 
 
 class StatusChange(models.Model):

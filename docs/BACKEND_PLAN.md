@@ -31,7 +31,7 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 | `Provider` ✅ | موجود. **ناقصه:** `accepted_specializations` (ManyToMany لـ `accounts.Specialization`) | FR-07, 08 |
 | `Opportunity` ✅ | `provider`، `specialization` (FK لـ `accounts.Specialization`)، `title`، `description`، `tasks`، `requirements`، `seats`، `start_date`، `end_date`، `location`، `status` (`open` / `closed`) | FR-09, 10 |
 
-**`free_seats()`** (المقاعد الفاضية = `seats` ناقص عدد الـ `Placement` الفعّالة على الفرصة) بتعتمد على `Placement`، فـ **وفاء بتضيفها لـ `Opportunity` بنفس الـ PR تبع `Placement`**.
+**`free_seats()`** ✅ (المقاعد الفاضية = `seats` ناقص عدد الـ `Placement` الفعّالة على الفرصة)، وبتطلع بالـ API كحقل `free_seats`.
 
 ### `applications`: وفاء
 
@@ -41,7 +41,7 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 | `Preference` ✅ | `application`، `opportunity`، `rank` (1–3) | FR-11، BR-03 (3 رغبات، D-04) |
 | `ApplicationDocument` ✅ | `application`، `title`، `file` (PDF/JPG/PNG حتى 5MB) | FR-11، BR-08 |
 | `StatusChange` ✅ | `application`، `from_status`، `to_status`، `changed_by`، `reason`، `created_at` | FR-12 (الطالب بيشوف المسار)، FR-40 |
-| `Placement` | `application`، `opportunity`، `start_date`، `end_date`، `provider_confirmed_at`، `closed_at`، `close_reason`، `is_active` | FR-14, 16, 30–32، BR-02 |
+| `Placement` ✅ | `application`، `opportunity`، `start_date`، `end_date`، `provider_confirmed_at`، `closed_at`، `close_reason`، `is_active` | FR-14, 16, 30–32، BR-02 |
 | `ExceptionRequest` | `application`، `kind` (change_provider / withdrawal / extension / issue)، `requested_by`، `reason`، `status`، `new_opportunity`، `new_end_date`، `decided_by`، `decision_note` | FR-30–33 |
 
 ### `training`: مريم
@@ -82,7 +82,7 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 | | وفاء | مريم |
 |---|---|---|
 | 1 | ✅ `Application` + `Preference` + `ApplicationDocument` + `StatusChange` | ✅ `Opportunity` + `accepted_specializations` |
-| 2 | المراجعة والتوزيع: `StatusChange`، `Placement` + `Opportunity.free_seats()`، endpoint تغيير الحالة + الإشعارات | استيراد Excel (FR-03) |
+| 2 | ✅ المراجعة والتوزيع: `Placement` + `free_seats()`، تعيين المشرف، تأكيد الجهة، الانسحاب + الإشعارات وسجل العمليات | ✅ استيراد Excel (FR-03)، ✅ سجل العمليات (FR-40)، ✅ السجل اليومي (FR-20) |
 | 3 | `ExceptionRequest` | كتاب التوجيه (FR-17)، `training` (FR-19–24) |
 | 4 | `evaluations` + الدرجة النهائية | الشهادات، Audit Log، لوحات الإحصائيات والتصدير |
 
@@ -90,8 +90,15 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 
 - **D-01:** عدد الساعات المعتمدة للأهلية (حاليًا 90 بالكود)
 - **D-08 / BR-06:** كم ساعة وكم أسبوع عشان يكتمل التدريب
-- **قاعدة البيانات:** الـ SRS بيقول PostgreSQL، بس حساب PythonAnywhere المجاني ما فيه PostgreSQL. حاليًا SQLite وشغالة. للعرض النهائي يا بنضل على SQLite، يا بندفع، يا بننقل لاستضافة تانية.
 - **`needs_changes`:** مش بالـ SRS، بس موجودة باتفاق الفريق (TEAM_AGREEMENT). بنضلها؟
+
+## الاستضافة (تقرر)
+
+- **للعرض:** الخادم بيضل على PythonAnywhere المجاني مع SQLite، و **بيانات تجريبية بس** (`seed_demo`)، ممنوع بيانات طلاب حقيقية. بعد العرض الكلية بتقرر الاستضافة الحقيقية، لأنها المسؤولة عن بيانات الطلاب.
+- **ما في مهام مجدولة (scheduled tasks)** على الحساب المجاني، فـ **الانتقالات التلقائية لازم تصير لما يصير حدث، مش بوقت محدد:**
+  - **اكتمال التدريب (BR-06):** نفحص لما الجهة تأكد يوم بالسجل اليومي. إذا وصلت الساعات للمطلوب: `application.move_to(Status.COMPLETED)`.
+  - **بداية التدريب:** الجهة بتعلّم إنه بلّش، أو نفحص التاريخ لما ينفتح الطلب.
+  - **تنبيه الحضور تحت 80% (FR-22):** نفحص لما يتأكد يوم.
 
 ## قاعدة لما نشتغل بنفس الوقت
 
