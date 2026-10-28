@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from accounts.eligibility import check_eligibility
 from accounts.models import StudentProfile, User
 from accounts.permissions import HasRole, IsStudent
+from certificates.services import issue_certificate
 from notifications.models import Notification, notify
 from providers.models import Opportunity, Provider
 
@@ -117,6 +118,9 @@ class ApplicationReviewViewSet(
         try:
             with transaction.atomic():
                 application.move_to(target, request.user, reason)
+                if target == Status.APPROVED:
+                    # FR-34: the certificate follows the coordinator's approval by itself.
+                    issue_certificate(application)
                 if target == Status.WITHDRAWN:
                     application.placements.filter(is_active=True).update(
                         is_active=False,

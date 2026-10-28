@@ -1,0 +1,48 @@
+from rest_framework import serializers
+
+from applications.models import Application
+
+from .models import Certificate
+
+PUBLIC_FIELDS = [
+    "serial_number",
+    "student_name",
+    "university_id",
+    "specialization",
+    "provider_name",
+    "opportunity_title",
+    "start_date",
+    "end_date",
+    "total_hours",
+    "issued_at",
+    "is_valid",
+    "revoked_at",
+]
+
+
+class CertificateSerializer(serializers.ModelSerializer):
+    is_valid = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Certificate
+        fields = ["id", "application", "verification_code", *PUBLIC_FIELDS, "revoke_reason"]
+        read_only_fields = fields
+
+
+class CertificateVerificationSerializer(serializers.ModelSerializer):
+    """FR-35: what anyone holding the QR code may see; the revoke reason stays internal."""
+
+    is_valid = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Certificate
+        fields = PUBLIC_FIELDS
+        read_only_fields = fields
+
+
+class IssueCertificateSerializer(serializers.Serializer):
+    application = serializers.PrimaryKeyRelatedField(queryset=Application.objects.all())
+
+
+class RevokeCertificateSerializer(serializers.Serializer):
+    reason = serializers.CharField()

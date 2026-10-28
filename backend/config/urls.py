@@ -15,6 +15,12 @@ from rest_framework import serializers
 from accounts.views import DepartmentViewSet, StudentViewSet, me, my_student_profile
 from applications.views import ApplicationDocumentViewSet, ApplicationReviewViewSet, ApplicationViewSet
 from audit.views import AuditLogViewSet
+from certificates.views import (
+    CertificateViewSet,
+    placement_letter,
+    verify_certificate,
+    verify_certificate_page,
+)
 from notifications.views import NotificationViewSet
 from providers.views import OpportunityViewSet, ProviderViewSet
 from training.views import (
@@ -49,6 +55,7 @@ router.register("training-plans", TrainingPlanViewSet, basename="training-plan")
 router.register("provider-daily-logs", ProviderDailyLogViewSet, basename="provider-daily-log")
 router.register("visits", VisitViewSet, basename="visit")
 router.register("reports", ReportViewSet, basename="report")
+router.register("certificates", CertificateViewSet, basename="certificate")
 
 urlpatterns = [
     # The bare address has no page of its own; send visitors to the API docs.
@@ -67,5 +74,8 @@ urlpatterns = [
     # Before the router, so "me" isn't read as a student id.
     path("api/students/me/", my_student_profile),
     path("api/imports/", include("imports.urls")),
+    path("api/certificates/verify/<uuid:code>/", verify_certificate),
+    path("verify/<uuid:code>/", verify_certificate_page, name="certificate-verify-page"),
+    path("api/placements/<int:pk>/letter/", placement_letter),
     path("api/", include(router.urls)),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
