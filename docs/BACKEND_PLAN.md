@@ -94,13 +94,13 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 - `DailyLog` لسا مرتبط بـ `Application`. الجهة بتشوف وبتأكد الأيام اللي ضمن فترة توزيعها، فلما تتغير الجهة (FR-30) الأيام القديمة بتضل مع الجهة القديمة بدون ما نغيّر الجدول.
 - ملفات الـ PDF بتنعمل بـ ReportLab مع `arabic-reshaper` و`python-bidi`، وخط Amiri (رخصة OFL) موجود بـ `backend/certificates/fonts/`. اسم الجامعة برابط QR بينضبطوا من `.env`: `TADREEB_INSTITUTION_NAME` و`TADREEB_CERTIFICATE_VERIFY_URL`.
 - المتبقي (شغل وفاء): `ExceptionRequest` (FR-30–33)، التقييمات والدرجة النهائية (FR-25–29). الدرجة النهائية بتقدر تستخدم `training.models.average_report_grade()` لحصة التقارير.
-- إكمال التدريب التلقائي (`in_training → completed`) لسا بينتظر قرار D-08 حول عدد الساعات والأسابيع.
-- تحقق بتاريخ 28-10-2026: `manage.py check`، `makemigrations --check --dry-run`، و219 اختبار ناجح.
+- إكمال التدريب التلقائي (BR-06): لما الجهة تأكد يوم ويوصل مجموع الساعات المؤكدة لـ `TADREEB_REQUIRED_TRAINING_HOURS` (مبدئيًا 240)، النظام بينقل الطلب لـ `completed` وببعت إشعار للطالب والمشرف. الرقم النهائي وشرط عدد الأسابيع لسا بينتظروا قرار D-08.
+- تحقق بتاريخ 28-10-2026: `manage.py check`، `makemigrations --check --dry-run`، و221 اختبار ناجح.
 
 ## قرارات لسا مفتوحة (Appendix A)
 
 - **D-01:** عدد الساعات المعتمدة للأهلية (حاليًا 90 بالكود)
-- **D-08 / BR-06:** كم ساعة وكم أسبوع عشان يكتمل التدريب
+- **D-08 / BR-06:** كم ساعة وكم أسبوع عشان يكتمل التدريب (حاليًا 240 ساعة بالكود، بدون شرط أسابيع)
 - **قاعدة البيانات:** الـ SRS بيقول PostgreSQL، بس حساب PythonAnywhere المجاني ما فيه PostgreSQL. حاليًا SQLite وشغالة. للعرض النهائي يا بنضل على SQLite، يا بندفع، يا بننقل لاستضافة تانية.
 - **`needs_changes`:** مش بالـ SRS، بس موجودة باتفاق الفريق (TEAM_AGREEMENT). بنضلها؟
 

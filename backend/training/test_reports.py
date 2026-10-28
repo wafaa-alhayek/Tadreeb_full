@@ -115,6 +115,28 @@ class ProviderConfirmationTests(APITestCase):
         response = self.client.post(f"/api/provider-daily-logs/{self.october_day.id}/confirm/")
         self.assertEqual(response.status_code, 400)
 
+    @override_settings(TADREEB_REQUIRED_TRAINING_HOURS=12)
+    def test_training_completes_when_confirmed_hours_reach_the_requirement(self):
+        # BR-06 / D-08: 6 + 6 confirmed hours = 12.
+        self.client.post(f"/api/provider-daily-logs/{self.october_day.id}/confirm/")
+        self.application.refresh_from_db()
+        self.assertEqual(self.application.status, Status.IN_TRAINING)
+
+        self.client.force_authenticate(self.other_provider_user)
+        self.client.post(f"/api/provider-daily-logs/{self.november_day.id}/confirm/")
+        self.application.refresh_from_db()
+        self.assertEqual(self.application.status, Status.COMPLETED)
+        last = self.application.history.last()
+        self.assertEqual((last.to_status, last.changed_by), (Status.COMPLETED, None))
+        self.assertTrue(Notification.objects.filter(recipient=self.student, title="اكتمل تدريبك").exists())
+
+    @override_settings(TADREEB_REQUIRED_TRAINING_HOURS=12)
+    def test_unconfirmed_hours_do_not_count(self):
+        # 12 hours are written, but only the October day (6 hours) is confirmed.
+        self.client.post(f"/api/provider-daily-logs/{self.october_day.id}/confirm/")
+        self.application.refresh_from_db()
+        self.assertEqual(self.application.status, Status.IN_TRAINING)
+
     def test_student_cannot_confirm(self):
         self.client.force_authenticate(self.student)
         response = self.client.post(f"/api/provider-daily-logs/{self.october_day.id}/confirm/")

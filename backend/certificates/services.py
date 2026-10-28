@@ -1,9 +1,9 @@
 from django.db import transaction
-from django.db.models import Sum
 from django.utils import timezone
 
 from applications.status import Status, TransitionError
 from notifications.models import Notification, notify
+from training.models import confirmed_hours
 
 from .models import Certificate
 
@@ -27,7 +27,6 @@ def issue_certificate(application, user=None):
     last = placements[-1]
     student = application.student
     profile = getattr(student, "student_profile", None)
-    hours = application.daily_logs.filter(confirmed_at__isnull=False).aggregate(total=Sum("hours"))
 
     with transaction.atomic():
         certificate = Certificate.objects.create(
@@ -40,7 +39,7 @@ def issue_certificate(application, user=None):
             opportunity_title=last.opportunity.title,
             start_date=placements[0].start_date,
             end_date=last.end_date,
-            total_hours=hours["total"] or 0,
+            total_hours=confirmed_hours(application),
             issued_by=user,
         )
         # BR-07: one serial per certificate, in order, e.g. TDR-2026-00012.

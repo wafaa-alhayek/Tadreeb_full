@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema
@@ -11,7 +12,7 @@ from applications.status import Status
 from audit.models import AuditLog, diff, log_action, snapshot
 from notifications.models import Notification, notify
 
-from .models import DailyLog, Report, TrainingPlan, Visit
+from .models import DailyLog, Report, TrainingPlan, Visit, complete_if_done
 from .serializers import (
     GRADES_LOCKED,
     DailyLogSerializer,
@@ -167,10 +168,12 @@ class ProviderDailyLogViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, 
         if log.application.status != Status.IN_TRAINING:
             raise serializers.ValidationError("يُؤكَّد الحضور فقط والطالب «قيد التدريب».")
         before = snapshot(log)
-        log.confirmed_at = timezone.now()
-        log.confirmed_by = request.user
-        log.save()
-        log_action(request, AuditLog.Action.UPDATE, log, diff(before, snapshot(log)))
+        with transaction.atomic():
+            log.confirmed_at = timezone.now()
+            log.confirmed_by = request.user
+            log.save()
+            log_action(request, AuditLog.Action.UPDATE, log, diff(before, snapshot(log)))
+            complete_if_done(log.application)
         return Response(self.get_serializer(log).data)
 
 

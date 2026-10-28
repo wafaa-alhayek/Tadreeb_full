@@ -5,6 +5,8 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from accounts.validators import validate_upload
+from applications.status import Status
+from notifications.models import Notification, notify
 
 
 class DailyLog(models.Model):
@@ -154,3 +156,33 @@ class Report(models.Model):
 def average_report_grade(application):
     """The mean of the graded reports out of 100, or None if none is graded yet (BR-04)."""
     return application.reports.filter(grade__isnull=False).aggregate(avg=models.Avg("grade"))["avg"]
+
+
+def confirmed_hours(application):
+    """Hours of the days the provider confirmed (BR-05)."""
+    return application.daily_logs.filter(confirmed_at__isnull=False).aggregate(
+        total=models.Sum("hours")
+    )["total"] or Decimal("0")
+
+
+def complete_if_done(application):
+    """BR-06: once the confirmed hours reach the requirement, the system marks the training completed.
+
+    Returns True if the application moved to completed.
+    """
+    if application.status != Status.IN_TRAINING:
+        return False
+    if confirmed_hours(application) < settings.TADREEB_REQUIRED_TRAINING_HOURS:
+        return False
+    application.move_to(Status.COMPLETED)
+    message = f"اكتملت {settings.TADREEB_REQUIRED_TRAINING_HOURS} ساعة تدريب مؤكدة."
+    notify(application.student, Notification.Kind.TRAINING, "اكتمل تدريبك", message)
+    if application.supervisor:
+        student = application.student
+        notify(
+            application.supervisor,
+            Notification.Kind.TRAINING,
+            "اكتمل تدريب طالب",
+            f"{student.get_full_name() or student.username}: {message}",
+        )
+    return True
