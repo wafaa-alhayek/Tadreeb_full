@@ -94,13 +94,11 @@ class VisitApiTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual([v["id"] for v in response.data["results"]], [mine.id])
 
-    def test_student_sees_only_own_visits(self):
-        mine = self.make_visit(self.sara_app, self.sup)
-        self.make_visit(self.omar_app, self.other_sup)
+    def test_student_cannot_see_visits(self):
+        self.make_visit(self.sara_app, self.sup)
         self.client.force_authenticate(self.sara)
         response = self.client.get("/api/visits/")
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual([v["id"] for v in response.data["results"]], [mine.id])
+        self.assertEqual(response.status_code, 403)
 
     # --- changing and deleting ---
 

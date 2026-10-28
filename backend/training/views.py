@@ -107,23 +107,16 @@ class VisitViewSet(
     mixins.ListModelMixin,
     viewsets.GenericViewSet,
 ):
-    """/api/visits/: the supervisor records field visits; the student can read theirs (FR-24)."""
+    """/api/visits/: the supervisor records field visits of their own students (FR-24)."""
 
     serializer_class = VisitSerializer
+    permission_classes = [IsSupervisor]
     http_method_names = ["get", "post", "patch", "head", "options"]
-
-    def get_permissions(self):
-        if self.action in ("create", "update", "partial_update"):
-            return [IsSupervisor()]
-        return [IsStudentOrSupervisor()]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Visit.objects.none()
-        user = self.request.user
-        if user.role == User.Role.SUPERVISOR:
-            return Visit.objects.filter(application__supervisor=user)
-        return Visit.objects.filter(application__student=user)
+        return Visit.objects.filter(application__supervisor=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(supervisor=self.request.user)
