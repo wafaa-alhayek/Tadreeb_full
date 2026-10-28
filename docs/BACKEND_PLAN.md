@@ -28,10 +28,10 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 
 | الجدول | الحقول | FR |
 |---|---|---|
-| `Provider` ✅ | موجود. **ناقصه:** `accepted_specializations` (ManyToMany لـ `accounts.Specialization`) | FR-07, 08 |
+| `Provider` ✅ | موجود، مع `accepted_specializations` (ManyToMany لـ `accounts.Specialization`) | FR-07, 08 |
 | `Opportunity` ✅ | `provider`، `specialization` (FK لـ `accounts.Specialization`)، `title`، `description`، `tasks`، `requirements`، `seats`، `start_date`، `end_date`، `location`، `status` (`open` / `closed`) | FR-09, 10 |
 
-**`free_seats()`** (المقاعد الفاضية = `seats` ناقص عدد الـ `Placement` الفعّالة على الفرصة) بتعتمد على `Placement`، فـ **وفاء بتضيفها لـ `Opportunity` بنفس الـ PR تبع `Placement`**.
+**`free_seats()`** يحسب المقاعد المتبقية بطرح التوزيعات الفعّالة من `seats`.
 
 ### `applications`: وفاء
 
@@ -82,9 +82,17 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 | | وفاء | مريم |
 |---|---|---|
 | 1 | ✅ `Application` + `Preference` + `ApplicationDocument` + `StatusChange` | ✅ `Opportunity` + `accepted_specializations` |
-| 2 | المراجعة والتوزيع: `StatusChange`، `Placement` + `Opportunity.free_seats()`، endpoint تغيير الحالة + الإشعارات | استيراد Excel (FR-03) |
-| 3 | `ExceptionRequest` | كتاب التوجيه (FR-17)، `training` (FR-19–24) |
+| 2 | ✅ مراجعة الطلبات وتوزيع المقبولين، `Placement`، المقاعد المتاحة، سجل الحالة والإشعارات | ✅ استيراد Excel (FR-03) |
+| 3 | `ExceptionRequest` | كتاب التوجيه (FR-17)، استكمال اعتماد سجلات التدريب، `training` (FR-19–24) |
 | 4 | `evaluations` + الدرجة النهائية | الشهادات، Audit Log، لوحات الإحصائيات والتصدير |
+
+## الحالة الفعلية
+
+- migrations التدريب موجودة لـ `DailyLog` و`TrainingPlan` و`WeeklyGoal` و`Visit`؛ لا حاجة لإعادة إنشائها.
+- `FR-19` و`FR-20` و`FR-24` لها models وAPI واختبارات. تأكيد سجل الحضور من جهة التدريب ما زال بحاجة إلى endpoint واختبارات.
+- مراجعة الطلبات صارت عبر `/api/application-reviews/`، والتوزيع ينشئ `Placement` ويحترم المقاعد المتاحة. `DailyLog` ما زال مرتبطًا بـ `Application`؛ نقله إلى `Placement` يحتاج قرار ترحيل بيانات قبل تغييره.
+- المتبقي غير المنفذ في الخطة: `ExceptionRequest`، `Report`، التقييمات والدرجة النهائية، الشهادات والتحقق العام، وكتاب التوجيه والإحصائيات/التصدير. إكمال التدريب التلقائي ينتظر قرار D-08 حول عدد الساعات والأسابيع.
+- تحقق الأساس بتاريخ 27-10-2026: `manage.py check`، `makemigrations --check --dry-run`، و164 اختبارًا ناجحًا قبل إضافة التوزيع؛ اختبارات التوزيع الجديدة قيد التحقق.
 
 ## قرارات لسا مفتوحة (Appendix A)
 

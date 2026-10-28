@@ -42,5 +42,9 @@ Student profile shape:
 
 Eligibility (BR-01) uses `TADREEB_MIN_CREDIT_HOURS` (90 for now, D-01 still open) and `TADREEB_MIN_GPA` (off) in `config/settings.py`. `academic_status` is `active`, `suspended` or `graduated`.
 
+### Application review and placement
+
+Reviewers (academic supervisors and coordinators) use `/api/application-reviews/` to list or retrieve applications and call `POST /api/application-reviews/<id>/transition/` with `target_status` and an optional `reason`. Coordinators can assign accepted applications with `POST /api/application-reviews/<id>/allocate/`, passing an opportunity and, when needed, a supervisor ID. The response includes placement history; opportunity responses include `free_seats`.
+
 الـ APIs لازم تمشي على الاتفاق بـ [docs/TEAM_AGREEMENT.md](../docs/TEAM_AGREEMENT.md) (أسماء الحقول snake_case، التواريخ YYYY-MM-DD، رموز الحالات...).
 الواجهة حاليًا بتستخدم بيانات وهمية بنفس الشكل: شوفي `frontend/src/api/mock.js` لتعرفي شو الشكل المتوقع.

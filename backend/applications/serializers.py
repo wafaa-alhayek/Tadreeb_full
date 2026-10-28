@@ -5,7 +5,14 @@ from rest_framework import serializers
 from accounts.models import StudentProfile
 from providers.models import Opportunity, Provider
 
-from .models import CLOSED_STATUSES, Application, ApplicationDocument, Preference, StatusChange
+from .models import (
+    CLOSED_STATUSES,
+    Application,
+    ApplicationDocument,
+    Placement,
+    Preference,
+    StatusChange,
+)
 from .status import allowed_next
 
 
@@ -67,6 +74,27 @@ class StatusChangeSerializer(serializers.ModelSerializer):
         fields = ["from_status", "to_status", "to_status_display", "reason", "created_at"]
 
 
+class PlacementSerializer(serializers.ModelSerializer):
+    opportunity_title = serializers.CharField(source="opportunity.title", read_only=True)
+    provider_name = serializers.CharField(source="opportunity.provider.name", read_only=True)
+
+    class Meta:
+        model = Placement
+        fields = [
+            "id",
+            "opportunity",
+            "opportunity_title",
+            "provider_name",
+            "start_date",
+            "end_date",
+            "provider_confirmed_at",
+            "closed_at",
+            "close_reason",
+            "is_active",
+        ]
+        read_only_fields = fields
+
+
 class ApplicationSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     preferences = PreferenceSerializer(many=True, read_only=True)
@@ -76,6 +104,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
     )
     documents = ApplicationDocumentSerializer(many=True, read_only=True)
     history = StatusChangeSerializer(many=True, read_only=True)
+    placements = PlacementSerializer(many=True, read_only=True)
     allowed_actions = serializers.SerializerMethodField()
 
     class Meta:
@@ -89,6 +118,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
             "opportunity_ids",
             "documents",
             "history",
+            "placements",
             "allowed_actions",
             "submitted_at",
             "created_at",

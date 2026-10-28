@@ -102,5 +102,8 @@ class Opportunity(models.Model):
         if self.start_date and self.end_date and self.end_date < self.start_date:
             raise ValidationError({"end_date": "تاريخ النهاية لازم يكون بعد تاريخ البداية."})
 
+    def free_seats(self):
+        return max(self.seats - self.placements.filter(is_active=True).count(), 0)
+
     def __str__(self):
         return f"{self.title} - {self.provider}"

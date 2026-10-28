@@ -129,3 +129,37 @@ class StatusChange(models.Model):
 
     def __str__(self):
         return f"{self.get_from_status_display()} → {self.get_to_status_display()}"
+
+
+class Placement(models.Model):
+    """A training placement; closed placements remain as historical records (FR-14, FR-30)."""
+
+    application = models.ForeignKey(
+        Application, on_delete=models.CASCADE, related_name="placements"
+    )
+    opportunity = models.ForeignKey(
+        "providers.Opportunity", on_delete=models.PROTECT, related_name="placements"
+    )
+    start_date = models.DateField()
+    end_date = models.DateField()
+    provider_confirmed_at = models.DateTimeField(null=True, blank=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+    close_reason = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["-start_date", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["application"],
+                condition=models.Q(is_active=True),
+                name="one_active_placement_per_application",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(end_date__gte=models.F("start_date")),
+                name="placement_ends_after_it_starts",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.application} - {self.opportunity}"

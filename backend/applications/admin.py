@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Application, ApplicationDocument, Preference, StatusChange
+from .models import Application, ApplicationDocument, Placement, Preference, StatusChange
 
 
 class PreferenceInline(admin.TabularInline):
@@ -23,10 +23,15 @@ class StatusChangeInline(admin.TabularInline):
         return False  # history is written by Application.move_to(), never by hand
 
 
+class PlacementInline(admin.TabularInline):
+    model = Placement
+    extra = 0
+
+
 @admin.register(Application)
 class ApplicationAdmin(admin.ModelAdmin):
     list_display = ("student", "status", "supervisor", "submitted_at")
     list_filter = ("status",)
     search_fields = ("student__username", "student__first_name", "student__last_name")
     readonly_fields = ("status", "submitted_at")  # statuses only change through the rules
-    inlines = [PreferenceInline, ApplicationDocumentInline, StatusChangeInline]
+    inlines = [PreferenceInline, ApplicationDocumentInline, StatusChangeInline, PlacementInline]
