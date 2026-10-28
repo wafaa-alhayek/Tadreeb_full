@@ -60,7 +60,7 @@ class OpportunitySerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
         extra_kwargs = {"provider": {"required": False}}
 
-    def get_free_seats(self, opportunity):
+    def get_free_seats(self, opportunity) -> int:
         return opportunity.free_seats()
 
     def validate(self, data):

@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'audit',
     'training',
     'certificates',
+    'analytics',
 ]
 
 MIDDLEWARE = [

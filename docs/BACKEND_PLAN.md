@@ -48,10 +48,10 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 
 | الجدول | بيرتبط بـ | FR |
 |---|---|---|
-| `TrainingPlan` / أهداف أسبوعية | `Application` | FR-19 |
-| `DailyLog`: التاريخ، الساعات، المهام، ملاحظات، `provider_confirmed` (هاد هو الحضور، BR-05) | **`Placement`** (عشان الساعات تضل لما تتغير الجهة) | FR-20–22 |
-| `Report` + تعليق المشرف + **درجة** (لازمة لـ BR-04) | `Application` | FR-23 |
-| `Visit` | `Application` | FR-24 |
+| `TrainingPlan` / أهداف أسبوعية ✅ | `Application` | FR-19 |
+| `DailyLog` ✅: التاريخ، الساعات، المهام، ملاحظات، `confirmed_at` / `confirmed_by` (هاد هو الحضور، BR-05) | `Application`؛ الجهة بتشوف الأيام اللي ضمن فترة الـ `Placement` تبعها | FR-20–22 |
+| `Report` ✅ + تعليق المشرف + **درجة** من 100 (لازمة لـ BR-04، `average_report_grade()`) | `Application` | FR-23 |
+| `Visit` ✅ | `Application` | FR-24 |
 
 ### `evaluations`: وفاء
 
@@ -65,11 +65,11 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 
 | | بيرتبط بـ | FR |
 |---|---|---|
-| كتاب التوجيه PDF | `Placement` (لما يصير الطلب `assigned`) | FR-17 |
-| `Certificate`: رقم تسلسلي، QR، `issued_at`، `revoked_at` + صفحة تحقق عامة | `Application` (لما يصير `approved`) | FR-34, 35، BR-07 |
-| `AuditLog` | أي عملية | FR-40 |
-| لوحات الإحصائيات، التصدير، الأرشيف والبحث | كل الجداول | FR-36, 37, 39 |
-| استيراد الطلاب من Excel | `accounts` | FR-03 |
+| كتاب التوجيه PDF ✅ | `Placement` (لما يصير الطلب `assigned`) | FR-17 |
+| `Certificate` ✅: رقم تسلسلي، QR، `issued_at`، `revoked_at` + صفحة تحقق عامة | `Application` (لما يصير `approved`) | FR-34, 35، BR-07 |
+| `AuditLog` ✅ | أي عملية | FR-40 |
+| لوحات الإحصائيات، التصدير، الأرشيف والبحث ✅ (`analytics`) | كل الجداول | FR-36, 37, 39 |
+| استيراد الطلاب من Excel ✅ | `accounts` | FR-03 |
 
 ### جاهز ✅
 
@@ -83,16 +83,19 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 |---|---|---|
 | 1 | ✅ `Application` + `Preference` + `ApplicationDocument` + `StatusChange` | ✅ `Opportunity` + `accepted_specializations` |
 | 2 | ✅ مراجعة الطلبات وتوزيع المقبولين، `Placement`، المقاعد المتاحة، سجل الحالة والإشعارات | ✅ استيراد Excel (FR-03) |
-| 3 | `ExceptionRequest` | كتاب التوجيه (FR-17)، استكمال اعتماد سجلات التدريب، `training` (FR-19–24) |
-| 4 | `evaluations` + الدرجة النهائية | الشهادات، Audit Log، لوحات الإحصائيات والتصدير |
+| 3 | `ExceptionRequest` | ✅ كتاب التوجيه (FR-17)، تأكيد الحضور من الجهة، `training` (FR-19–24) |
+| 4 | `evaluations` + الدرجة النهائية | ✅ الشهادات، Audit Log، لوحات الإحصائيات والتصدير والأرشيف |
 
 ## الحالة الفعلية
 
-- migrations التدريب موجودة لـ `DailyLog` و`TrainingPlan` و`WeeklyGoal` و`Visit`؛ لا حاجة لإعادة إنشائها.
-- `FR-19` و`FR-20` و`FR-24` لها models وAPI واختبارات. تأكيد سجل الحضور من جهة التدريب ما زال بحاجة إلى endpoint واختبارات.
-- مراجعة الطلبات صارت عبر `/api/application-reviews/`، والتوزيع ينشئ `Placement` ويحترم المقاعد المتاحة. `DailyLog` ما زال مرتبطًا بـ `Application`؛ نقله إلى `Placement` يحتاج قرار ترحيل بيانات قبل تغييره.
-- المتبقي غير المنفذ في الخطة: `ExceptionRequest`، `Report`، التقييمات والدرجة النهائية، الشهادات والتحقق العام، وكتاب التوجيه والإحصائيات/التصدير. إكمال التدريب التلقائي ينتظر قرار D-08 حول عدد الساعات والأسابيع.
-- تحقق الأساس بتاريخ 27-10-2026: `manage.py check`، `makemigrations --check --dry-run`، و164 اختبارًا ناجحًا قبل إضافة التوزيع؛ اختبارات التوزيع الجديدة قيد التحقق.
+- شغل مريم بالخطة كله صار إله models وAPI واختبارات: `training` (FR-19–24، مع تأكيد الحضور من الجهة)، كتاب التوجيه، الشهادات والتحقق العام، الإحصائيات والتصدير والأرشيف.
+- مراجعة الطلبات صارت عبر `/api/application-reviews/`، والتوزيع ينشئ `Placement` ويحترم المقاعد المتاحة.
+- لما المنسق يعتمد التدريب (`completed → approved`) الشهادة بتطلع لحالها والطلب بيصير `certified`. لو ما في `Placement` للطلب، الاعتماد بيرجع خطأ وما بيتغير شي.
+- `DailyLog` لسا مرتبط بـ `Application`. الجهة بتشوف وبتأكد الأيام اللي ضمن فترة توزيعها، فلما تتغير الجهة (FR-30) الأيام القديمة بتضل مع الجهة القديمة بدون ما نغيّر الجدول.
+- ملفات الـ PDF بتنعمل بـ ReportLab مع `arabic-reshaper` و`python-bidi`، وخط Amiri (رخصة OFL) موجود بـ `backend/certificates/fonts/`. اسم الجامعة برابط QR بينضبطوا من `.env`: `TADREEB_INSTITUTION_NAME` و`TADREEB_CERTIFICATE_VERIFY_URL`.
+- المتبقي (شغل وفاء): `ExceptionRequest` (FR-30–33)، التقييمات والدرجة النهائية (FR-25–29). الدرجة النهائية بتقدر تستخدم `training.models.average_report_grade()` لحصة التقارير.
+- إكمال التدريب التلقائي (`in_training → completed`) لسا بينتظر قرار D-08 حول عدد الساعات والأسابيع.
+- تحقق بتاريخ 28-10-2026: `manage.py check`، `makemigrations --check --dry-run`، و219 اختبار ناجح.
 
 ## قرارات لسا مفتوحة (Appendix A)
 
