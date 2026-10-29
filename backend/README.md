@@ -44,7 +44,17 @@ Eligibility (BR-01) uses `TADREEB_MIN_CREDIT_HOURS` (90 for now, D-01 still open
 
 ### Application review and placement
 
-Reviewers (academic supervisors and coordinators) use `/api/application-reviews/` to list or retrieve applications and call `POST /api/application-reviews/<id>/transition/` with `target_status` and an optional `reason`. Coordinators can assign accepted applications with `POST /api/application-reviews/<id>/allocate/`, passing an opportunity and, when needed, a supervisor ID. The response includes placement history; opportunity responses include `free_seats`.
+Everything happens on `/api/applications/<id>/`, and each role sees only its own applications:
+
+| Method | URL | Who | Notes |
+|---|---|---|---|
+| POST | `/api/applications/<id>/transition/` | supervisor, coordinator | `{"status": "under_review" \| "accepted" \| "rejected" \| "needs_changes" \| "withdrawn", "reason": "..."}` (FR-13, FR-31) |
+| POST | `/api/applications/<id>/assign-supervisor/` | coordinator | `{"supervisor": 4}` (FR-18) |
+| POST | `/api/applications/<id>/allocate/` | supervisor, coordinator | `{"opportunity": 7}`, creates the `Placement` (FR-14) |
+| POST | `/api/applications/<id>/confirm/` | provider | accepts the student (FR-16) and starts the training: `assigned → in_training` |
+| POST | `/api/applications/<id>/approve/` | coordinator | `completed → approved`, then the certificate is issued and the application becomes `certified` (FR-34) |
+
+Opportunity responses include `free_seats`.
 
 ### Training follow-up, certificates and reports
 

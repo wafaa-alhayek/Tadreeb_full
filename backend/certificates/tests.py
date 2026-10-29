@@ -64,11 +64,7 @@ class CertificateTestData(APITestCase):
 
     def approve(self):
         self.client.force_authenticate(self.coordinator)
-        return self.client.post(
-            f"/api/application-reviews/{self.application.id}/transition/",
-            {"target_status": Status.APPROVED},
-            format="json",
-        )
+        return self.client.post(f"/api/applications/{self.application.id}/approve/")
 
 
 class IssueCertificateTests(CertificateTestData):
@@ -118,6 +114,13 @@ class IssueCertificateTests(CertificateTestData):
         self.placement.delete()
         response = self.approve()
         self.assertEqual(response.status_code, 400)
+        self.application.refresh_from_db()
+        self.assertEqual(self.application.status, Status.COMPLETED)
+
+    def test_only_the_coordinator_approves(self):
+        self.client.force_authenticate(self.sup)
+        response = self.client.post(f"/api/applications/{self.application.id}/approve/")
+        self.assertEqual(response.status_code, 403)
         self.application.refresh_from_db()
         self.assertEqual(self.application.status, Status.COMPLETED)
 

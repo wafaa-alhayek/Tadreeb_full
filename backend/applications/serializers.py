@@ -66,16 +66,9 @@ class ApplicationDocumentSerializer(serializers.ModelSerializer):
         return application
 
 
-class StatusChangeSerializer(serializers.ModelSerializer):
-    to_status_display = serializers.CharField(source="get_to_status_display", read_only=True)
-
-    class Meta:
-        model = StatusChange
-        fields = ["from_status", "to_status", "to_status_display", "reason", "created_at"]
-
-
 class PlacementSerializer(serializers.ModelSerializer):
     opportunity_title = serializers.CharField(source="opportunity.title", read_only=True)
+    provider = serializers.IntegerField(source="opportunity.provider_id", read_only=True)
     provider_name = serializers.CharField(source="opportunity.provider.name", read_only=True)
 
     class Meta:
@@ -84,15 +77,23 @@ class PlacementSerializer(serializers.ModelSerializer):
             "id",
             "opportunity",
             "opportunity_title",
+            "provider",
             "provider_name",
             "start_date",
             "end_date",
             "provider_confirmed_at",
+            "is_active",
             "closed_at",
             "close_reason",
-            "is_active",
         ]
-        read_only_fields = fields
+
+
+class StatusChangeSerializer(serializers.ModelSerializer):
+    to_status_display = serializers.CharField(source="get_to_status_display", read_only=True)
+
+    class Meta:
+        model = StatusChange
+        fields = ["from_status", "to_status", "to_status_display", "reason", "created_at"]
 
 
 class ApplicationSerializer(serializers.ModelSerializer):
@@ -104,21 +105,34 @@ class ApplicationSerializer(serializers.ModelSerializer):
     )
     documents = ApplicationDocumentSerializer(many=True, read_only=True)
     history = StatusChangeSerializer(many=True, read_only=True)
-    placements = PlacementSerializer(many=True, read_only=True)
     allowed_actions = serializers.SerializerMethodField()
+    # Who the student is, for supervisors, the coordinator and providers.
+    student = serializers.IntegerField(source="student_id", read_only=True)
+    student_university_id = serializers.CharField(source="student.username", read_only=True)
+    student_name = serializers.CharField(source="student.get_full_name", read_only=True)
+    supervisor = serializers.IntegerField(source="supervisor_id", read_only=True)
+    supervisor_name = serializers.CharField(
+        source="supervisor.get_full_name", read_only=True, default=None
+    )
+    placement = serializers.SerializerMethodField()
 
     class Meta:
         model = Application
         fields = [
             "id",
+            "student",
+            "student_university_id",
+            "student_name",
             "status",
             "status_display",
             "status_reason",
+            "supervisor",
+            "supervisor_name",
+            "placement",
             "preferences",
             "opportunity_ids",
             "documents",
             "history",
-            "placements",
             "allowed_actions",
             "submitted_at",
             "created_at",
@@ -130,6 +144,12 @@ class ApplicationSerializer(serializers.ModelSerializer):
     def get_allowed_actions(self, application):
         """The statuses the requester may move this application to (which buttons to show)."""
         return allowed_next(application.status, self.context["request"].user.role)
+
+    @extend_schema_field(PlacementSerializer(allow_null=True))
+    def get_placement(self, application):
+        """The active placement (where the student trains now), or null."""
+        placement = application.active_placement
+        return PlacementSerializer(placement).data if placement else None
 
     def validate_opportunity_ids(self, opportunity_ids):
         return check_opportunities(self.context["request"].user, opportunity_ids)

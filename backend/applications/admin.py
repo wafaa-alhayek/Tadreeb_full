@@ -13,6 +13,11 @@ class ApplicationDocumentInline(admin.TabularInline):
     extra = 0
 
 
+class PlacementInline(admin.TabularInline):
+    model = Placement
+    extra = 0
+
+
 class StatusChangeInline(admin.TabularInline):
     model = StatusChange
     extra = 0
@@ -23,15 +28,10 @@ class StatusChangeInline(admin.TabularInline):
         return False  # history is written by Application.move_to(), never by hand
 
 
-class PlacementInline(admin.TabularInline):
-    model = Placement
-    extra = 0
-
-
 @admin.register(Application)
 class ApplicationAdmin(admin.ModelAdmin):
     list_display = ("student", "status", "supervisor", "submitted_at")
     list_filter = ("status",)
     search_fields = ("student__username", "student__first_name", "student__last_name")
     readonly_fields = ("status", "submitted_at")  # statuses only change through the rules
-    inlines = [PreferenceInline, ApplicationDocumentInline, StatusChangeInline, PlacementInline]
+    inlines = [PreferenceInline, ApplicationDocumentInline, PlacementInline, StatusChangeInline]

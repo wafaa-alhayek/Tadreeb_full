@@ -34,7 +34,7 @@ class OpportunitySerializer(serializers.ModelSerializer):
     provider_name = serializers.CharField(source="provider.name", read_only=True)
     specialization_name = serializers.CharField(source="specialization.name", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
-    free_seats = serializers.SerializerMethodField()
+    free_seats = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Opportunity
@@ -59,9 +59,6 @@ class OpportunitySerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at"]
         extra_kwargs = {"provider": {"required": False}}
-
-    def get_free_seats(self, opportunity) -> int:
-        return opportunity.free_seats()
 
     def validate(self, data):
         start = data.get("start_date", getattr(self.instance, "start_date", None))
