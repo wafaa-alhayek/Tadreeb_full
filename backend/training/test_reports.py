@@ -7,7 +7,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from rest_framework.test import APITestCase
 
-from accounts.models import Department, Specialization, User
+from accounts.models import Department, Specialization, StudentProfile, User
 from applications.models import Application, Placement
 from applications.status import Status
 from audit.models import AuditLog
@@ -47,9 +47,8 @@ class ProviderConfirmationTests(APITestCase):
             username="prov2", password="x", role=User.Role.PROVIDER
         )
         self.student = User.objects.create_user(username="20251234", password="x", role=User.Role.STUDENT)
-        specialization = Specialization.objects.create(
-            department=Department.objects.create(name="تقنية المعلومات"), name="برمجة"
-        )
+        self.department = Department.objects.create(name="تقنية المعلومات")
+        specialization = Specialization.objects.create(department=self.department, name="برمجة")
         self.provider = make_provider("شركة التقنية", self.provider_user)
         self.other_provider = make_provider("شركة أخرى", self.other_provider_user)
         self.application = Application.objects.create(student=self.student, status=Status.IN_TRAINING)
@@ -136,6 +135,43 @@ class ProviderConfirmationTests(APITestCase):
         self.client.post(f"/api/provider-daily-logs/{self.october_day.id}/confirm/")
         self.application.refresh_from_db()
         self.assertEqual(self.application.status, Status.IN_TRAINING)
+
+    @override_settings(TADREEB_REQUIRED_TRAINING_HOURS=6)
+    def test_the_departments_hours_come_first(self):
+        # BR-06 / D-08: this department needs 12 hours, not the general 6.
+        self.department.required_training_hours = 12
+        self.department.save()
+        StudentProfile.objects.create(user=self.student, department=self.department)
+        self.client.post(f"/api/provider-daily-logs/{self.october_day.id}/confirm/")
+        self.application.refresh_from_db()
+        self.assertEqual(self.application.status, Status.IN_TRAINING)
+
+        self.client.force_authenticate(self.other_provider_user)
+        self.client.post(f"/api/provider-daily-logs/{self.november_day.id}/confirm/")
+        self.application.refresh_from_db()
+        self.assertEqual(self.application.status, Status.COMPLETED)
+        self.assertTrue(
+            Notification.objects.filter(recipient=self.student, message="اكتملت 12 ساعة تدريب مؤكدة.").exists()
+        )
+
+    def test_student_sees_progress_against_the_departments_hours(self):
+        self.department.required_training_hours = 24
+        self.department.save()
+        StudentProfile.objects.create(user=self.student, department=self.department)
+        self.client.post(f"/api/provider-daily-logs/{self.october_day.id}/confirm/")
+
+        self.client.force_authenticate(self.student)
+        response = self.client.get(f"/api/daily-logs/progress/?application={self.application.id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["confirmed_hours"], 6)
+        self.assertEqual(response.data["required_hours"], 24)
+        self.assertEqual(response.data["remaining_hours"], 18)
+        self.assertEqual(response.data["percent"], 25)
+
+        other = User.objects.create_user(username="20259999", password="x", role=User.Role.STUDENT)
+        self.client.force_authenticate(other)
+        response = self.client.get(f"/api/daily-logs/progress/?application={self.application.id}")
+        self.assertEqual(response.status_code, 404)
 
     def test_student_cannot_confirm(self):
         self.client.force_authenticate(self.student)

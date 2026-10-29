@@ -198,5 +198,5 @@ Review and allocation (FR-13, FR-14, FR-18), `Placement` (one active per student
 ## Open points to coordinate
 
 - **`DailyLog` links to `Application`.** The plan suggested linking it to `Placement`, so hours from an old provider stay separate after a provider change (FR-30, D-12). When `Placement` exists, decide with Wafaa whether to add a `placement` field to `DailyLog`.
-- **Who moves `in_training → completed`?** It's a system move when BR-06 is met ("Training is complete after [N] hours over at least [N] weeks", D-08, numbers not decided yet). The hours come from your daily logs; the move uses `application.move_to(Status.COMPLETED)`.
-- **Open decisions:** D-01 (credit hours, currently 90), D-05 (grade weights), D-07 (alert threshold 80%), D-08 (required hours and weeks), whether to keep `needs_changes`, and PostgreSQL vs SQLite for the final demo.
+- **Who moves `in_training → completed`?** It's a system move when BR-06 is met ("Training is complete after [N] hours over at least [N] weeks", D-08). Decided: the hours are per department, `Department.required_training_hours`, falling back to `TADREEB_REQUIRED_TRAINING_HOURS`. The hours come from your daily logs; the move uses `application.move_to(Status.COMPLETED)`.
+- **Open decisions:** D-01 (credit hours, currently 90), D-05 (grade weights), D-07 (alert threshold 80%), D-08 (each department's hours, and whether there's a weeks condition), whether to keep `needs_changes`, and PostgreSQL vs SQLite for the final demo.

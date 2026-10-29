@@ -165,6 +165,15 @@ def confirmed_hours(application):
     )["total"] or Decimal("0")
 
 
+def required_hours(application):
+    """BR-06 / D-08: the training hours the student's department requires."""
+    profile = getattr(application.student, "student_profile", None)
+    department = profile.department if profile else None
+    if department and department.required_training_hours:
+        return department.required_training_hours
+    return settings.TADREEB_REQUIRED_TRAINING_HOURS
+
+
 def complete_if_done(application):
     """BR-06: once the confirmed hours reach the requirement, the system marks the training completed.
 
@@ -172,10 +181,11 @@ def complete_if_done(application):
     """
     if application.status != Status.IN_TRAINING:
         return False
-    if confirmed_hours(application) < settings.TADREEB_REQUIRED_TRAINING_HOURS:
+    required = required_hours(application)
+    if confirmed_hours(application) < required:
         return False
     application.move_to(Status.COMPLETED)
-    message = f"اكتملت {settings.TADREEB_REQUIRED_TRAINING_HOURS} ساعة تدريب مؤكدة."
+    message = f"اكتملت {required} ساعة تدريب مؤكدة."
     notify(application.student, Notification.Kind.TRAINING, "اكتمل تدريبك", message)
     if application.supervisor:
         student = application.student

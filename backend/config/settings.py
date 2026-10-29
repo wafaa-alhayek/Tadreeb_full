@@ -245,7 +245,8 @@ TADREEB_MIN_CREDIT_HOURS = 90
 TADREEB_MIN_GPA = None
 # BR-03 / D-04: how many opportunities a student may rank in one application.
 TADREEB_MAX_PREFERENCES = 3
-# BR-06 / D-08: confirmed training hours that complete the training (proposed default, college to confirm).
+# BR-06 / D-08: confirmed training hours that complete the training, for departments that
+# haven't set their own (Department.required_training_hours).
 TADREEB_REQUIRED_TRAINING_HOURS = 240
 # BR-04 / D-05: the final grade's parts (percent, adding up to 100) and the pass mark.
 TADREEB_GRADE_WEIGHTS = {"provider": 40, "supervisor": 40, "reports": 20}
