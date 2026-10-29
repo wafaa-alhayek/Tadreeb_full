@@ -11,7 +11,10 @@ from .models import Application, Placement
 from .status import Status
 
 
-class ReviewAndAllocationTests(APITestCase):
+class ApplicationTestCase(APITestCase):
+    """People, a provider, an opportunity and Sara's submitted application, plus helpers.
+    The other application test files build on this."""
+
     def setUp(self):
         it = Department.objects.create(name="تقنية المعلومات")
         self.software = Specialization.objects.create(department=it, name="هندسة برمجيات")
@@ -79,6 +82,13 @@ class ReviewAndAllocationTests(APITestCase):
         self.application.move_to(Status.UNDER_REVIEW, self.supervisor)
         self.application.move_to(Status.ACCEPTED, self.supervisor)
 
+    def allocated(self):
+        self.accepted()
+        self.as_user(self.supervisor)
+        self.post("allocate", {"opportunity": self.opportunity.id})
+
+
+class ReviewAndAllocationTests(ApplicationTestCase):
     # --- who sees what (Section 2.2, NFR-18) ---
 
     def test_coordinator_sees_submitted_but_not_drafts(self):
@@ -215,11 +225,6 @@ class ReviewAndAllocationTests(APITestCase):
         self.assertEqual(response.data["free_seats"], 1)
 
     # --- the provider (FR-16, NFR-18) ---
-
-    def allocated(self):
-        self.accepted()
-        self.as_user(self.supervisor)
-        self.post("allocate", {"opportunity": self.opportunity.id})
 
     def test_provider_sees_and_confirms_its_allocated_student(self):
         self.as_user(self.provider_user)

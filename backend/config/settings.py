@@ -210,6 +210,7 @@ SPECTACULAR_SETTINGS = {
         "ApplicationStatusEnum": "applications.status.Status",
         "ProviderStatusEnum": "providers.models.Provider.Status",
         "OpportunityStatusEnum": "providers.models.Opportunity.Status",
+        "ExceptionStatusEnum": "applications.models.ExceptionRequest.State",
     },
 }
 

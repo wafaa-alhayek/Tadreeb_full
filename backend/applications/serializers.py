@@ -9,6 +9,7 @@ from .models import (
     CLOSED_STATUSES,
     Application,
     ApplicationDocument,
+    ExceptionRequest,
     Placement,
     Preference,
     StatusChange,
@@ -86,6 +87,42 @@ class PlacementSerializer(serializers.ModelSerializer):
             "closed_at",
             "close_reason",
         ]
+
+
+class ExceptionRequestSerializer(serializers.ModelSerializer):
+    """FR-30–33. The student, supervisor or provider sends application, kind and reason, plus
+    new_opportunity (change_provider, optional) or new_end_date (extension)."""
+
+    kind_display = serializers.CharField(source="get_kind_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    student_name = serializers.CharField(source="application.student.get_full_name", read_only=True)
+    requested_by_name = serializers.CharField(source="requested_by.get_full_name", read_only=True, default=None)
+    new_opportunity_title = serializers.CharField(source="new_opportunity.title", read_only=True, default=None)
+    decided_by_name = serializers.CharField(source="decided_by.get_full_name", read_only=True, default=None)
+
+    class Meta:
+        model = ExceptionRequest
+        fields = [
+            "id",
+            "application",
+            "student_name",
+            "kind",
+            "kind_display",
+            "status",
+            "status_display",
+            "reason",
+            "new_opportunity",
+            "new_opportunity_title",
+            "new_end_date",
+            "requested_by",
+            "requested_by_name",
+            "decided_by",
+            "decided_by_name",
+            "decision_note",
+            "decided_at",
+            "created_at",
+        ]
+        read_only_fields = ["status", "requested_by", "decided_by", "decision_note", "decided_at"]
 
 
 class StatusChangeSerializer(serializers.ModelSerializer):
