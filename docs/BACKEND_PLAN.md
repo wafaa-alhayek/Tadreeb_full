@@ -57,9 +57,9 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 
 | الجدول | الحقول | FR / BR |
 |---|---|---|
-| `Evaluation` | `application`، `evaluator`، `kind` (provider / supervisor)، درجات المعايير، `total` | FR-25, 26 |
-| الدرجة النهائية | محسوبة: جهة 40% + مشرف 40% + تقارير 20%، النجاح 60% | FR-27، BR-04 (D-05) |
-| `ProviderRating` | `application`، `rating`، `comment` | FR-29 (Could) |
+| `Evaluation` ✅ | `application`، `evaluator`، `kind` (provider / supervisor)، `scores` (كل معيار من 1 لـ 5، نفس معايير صفحة الواجهة)، `notes`، `total` من 100 | FR-25, 26 |
+| الدرجة النهائية ✅ | محسوبة بـ `evaluations/grades.py`: جهة 40% + مشرف 40% + تقارير 20%، النجاح 60% (`TADREEB_GRADE_WEIGHTS` و`TADREEB_PASS_GRADE`) | FR-27، BR-04 (D-05) |
+| `ProviderRating` ✅ | `application`، `provider`، `rating` (1–5)، `comment` | FR-29 (Could) |
 
 ### `certificates` وباقي الإدارة: مريم
 
@@ -84,23 +84,25 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 | 1 | ✅ `Application` + `Preference` + `ApplicationDocument` + `StatusChange` | ✅ `Opportunity` + `accepted_specializations` |
 | 2 | ✅ المراجعة والتوزيع: `Placement` + `free_seats()`، تعيين المشرف، تأكيد الجهة، الانسحاب + الإشعارات وسجل العمليات | ✅ استيراد Excel (FR-03)، ✅ سجل العمليات (FR-40)، ✅ السجل اليومي (FR-20) |
 | 3 | `ExceptionRequest` | ✅ كتاب التوجيه (FR-17)، تأكيد الحضور من الجهة، `training` (FR-19–24) |
-| 4 | `evaluations` + الدرجة النهائية | ✅ الشهادات، Audit Log، لوحات الإحصائيات والتصدير والأرشيف |
+| 4 | ✅ `evaluations` + الدرجة النهائية (بنتها مريم) | ✅ الشهادات، Audit Log، لوحات الإحصائيات والتصدير والأرشيف |
 
 ## الحالة الفعلية
 
 - شغل مريم بالخطة كله صار إله models وAPI واختبارات: `training` (FR-19–24، مع تأكيد الحضور من الجهة)، كتاب التوجيه، الشهادات والتحقق العام، الإحصائيات والتصدير والأرشيف.
 - المراجعة والتوزيع (شغل وفاء) على `/api/applications/<id>/…`: `transition`، `allocate`، `assign-supervisor`، `confirm`.
 - لما الجهة تأكد قبول الطالب (`confirm`، FR-16) الطلب بينتقل لحاله من `assigned` لـ `in_training`، وهيك الطالب بيقدر يبلش يسجل أيامه (FR-20). بعد تغيير الجهة (FR-30) الطلب أصلًا `in_training` فما بيتغير.
-- المنسق بيعتمد التدريب عبر `POST /api/applications/<id>/approve/` (`completed → approved`)، والشهادة بتطلع لحالها والطلب بيصير `certified`. لو ما انعملت الشهادة (مثلًا ما في `Placement`) الاعتماد كله بيرجع وما بيتغير شي. لما تجهز التقييمات لازم نضيف هون شرط النجاح (BR-04).
+- المنسق بيعتمد التدريب عبر `POST /api/applications/<id>/approve/` (`completed → approved`)، والشهادة بتطلع لحالها والطلب بيصير `certified`. لو ما انعملت الشهادة (مثلًا ما في `Placement`) الاعتماد كله بيرجع وما بيتغير شي. وما بيصير الاعتماد إلا لما تكتمل الدرجة النهائية وتكون ناجحة (BR-04)، وإلا بيرجع خطأ بيقول شو الناقص.
 - `DailyLog` لسا مرتبط بـ `Application`. الجهة بتشوف وبتأكد الأيام اللي ضمن فترة توزيعها، فلما تتغير الجهة (FR-30) الأيام القديمة بتضل مع الجهة القديمة بدون ما نغيّر الجدول.
 - ملفات الـ PDF بتنعمل بـ ReportLab مع `arabic-reshaper` و`python-bidi`، وخط Amiri (رخصة OFL) موجود بـ `backend/certificates/fonts/`. اسم الجامعة برابط QR بينضبطوا من `.env`: `TADREEB_INSTITUTION_NAME` و`TADREEB_CERTIFICATE_VERIFY_URL`.
-- المتبقي (شغل وفاء): `ExceptionRequest` (FR-30–33، PR #28 مفتوح)، التقييمات والدرجة النهائية (FR-25–29). الدرجة النهائية بتقدر تستخدم `training.models.average_report_grade()` لحصة التقارير.
+- التقييمات (FR-25–29) صارت بـ app اسمه `evaluations`: الجهة والمشرف كل واحد بيقيّم مرة وبيقدر يعدّل لحد الاعتماد، والطالب بيقيّم الجهة بعد ما يخلص. لما تكتمل الدرجات لتدريب `completed` المنسق بيوصله إشعار «تدريب جاهز للاعتماد». الدرجة النهائية كمان بتطلع بملف Excel.
+- المتبقي (شغل وفاء): `ExceptionRequest` (FR-30–33، PR #28 مفتوح).
 - إكمال التدريب التلقائي (BR-06): لما الجهة تأكد يوم ويوصل مجموع الساعات المؤكدة لـ `TADREEB_REQUIRED_TRAINING_HOURS` (مبدئيًا 240)، النظام بينقل الطلب لـ `completed` وببعت إشعار للطالب والمشرف. الرقم النهائي وشرط عدد الأسابيع لسا بينتظروا قرار D-08.
-- تحقق بتاريخ 29-10-2026 بعد الدمج مع `main`: `manage.py check`، `makemigrations --check --dry-run`، و229 اختبار ناجح.
+- تحقق بتاريخ 29-10-2026: `manage.py check`، `makemigrations --check --dry-run`، `spectacular --validate`، و247 اختبار ناجح.
 
 ## قرارات لسا مفتوحة (Appendix A)
 
 - **D-01:** عدد الساعات المعتمدة للأهلية (حاليًا 90 بالكود)
+- **D-05:** أوزان الدرجة النهائية ودرجة النجاح (حاليًا 40/40/20 والنجاح 60)
 - **D-08 / BR-06:** كم ساعة وكم أسبوع عشان يكتمل التدريب (حاليًا 240 ساعة بالكود، بدون شرط أسابيع)
 - **قاعدة البيانات:** الـ SRS بيقول PostgreSQL، بس حساب PythonAnywhere المجاني ما فيه PostgreSQL. حاليًا SQLite وشغالة. للعرض النهائي يا بنضل على SQLite، يا بندفع، يا بننقل لاستضافة تانية.
 - **`needs_changes`:** مش بالـ SRS، بس موجودة باتفاق الفريق (TEAM_AGREEMENT). بنضلها؟

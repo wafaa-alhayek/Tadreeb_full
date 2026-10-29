@@ -10,6 +10,7 @@ from accounts.models import User
 from accounts.permissions import HasRole, IsProvider, IsStudent, IsSupervisor
 from applications.status import Status
 from audit.models import AuditLog, diff, log_action, snapshot
+from evaluations.grades import is_ready, notify_if_ready
 from notifications.models import Notification, notify
 
 from .models import DailyLog, Report, TrainingPlan, Visit, complete_if_done
@@ -173,7 +174,9 @@ class ProviderDailyLogViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, 
             log.confirmed_by = request.user
             log.save()
             log_action(request, AuditLog.Action.UPDATE, log, diff(before, snapshot(log)))
-            complete_if_done(log.application)
+            if complete_if_done(log.application):
+                # The evaluations may already be in, so it can be approved right away.
+                notify_if_ready(log.application, was_ready=False)
         return Response(self.get_serializer(log).data)
 
 
@@ -244,6 +247,7 @@ class ReportViewSet(
         data = ReportGradeSerializer(data=request.data)
         data.is_valid(raise_exception=True)
         before = snapshot(report)
+        was_ready = is_ready(report.application)
         report.grade = data.validated_data["grade"]
         report.supervisor_comment = data.validated_data["supervisor_comment"]
         report.graded_at = timezone.now()
@@ -256,4 +260,5 @@ class ReportViewSet(
             "تم تقييم تقريرك",
             f"{report.title}: {report.grade}/100",
         )
+        notify_if_ready(report.application, was_ready)
         return Response(self.get_serializer(report).data)

@@ -16,6 +16,7 @@ from analytics.views import ApplicationsExportView, ArchiveViewSet, StatsView
 from accounts.views import DepartmentViewSet, StudentViewSet, me, my_student_profile
 from applications.views import ApplicationDocumentViewSet, ApplicationViewSet
 from audit.views import AuditLogViewSet
+from evaluations.views import EvaluationViewSet, ProviderRatingViewSet
 from certificates.views import (
     CertificateViewSet,
     placement_letter,
@@ -57,6 +58,8 @@ router.register("visits", VisitViewSet, basename="visit")
 router.register("reports", ReportViewSet, basename="report")
 router.register("certificates", CertificateViewSet, basename="certificate")
 router.register("archive", ArchiveViewSet, basename="archive")
+router.register("evaluations", EvaluationViewSet, basename="evaluation")
+router.register("provider-ratings", ProviderRatingViewSet, basename="provider-rating")
 
 urlpatterns = [
     # The bare address has no page of its own; send visitors to the API docs.

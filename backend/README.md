@@ -68,11 +68,15 @@ Opportunity responses include `free_seats`.
 | GET | `/api/certificates/` and `/api/certificates/<id>/pdf/` | student (own), supervisor (own students), coordinator | certificate with QR code (FR-34) |
 | POST | `/api/certificates/` and `/api/certificates/<id>/revoke/` | coordinator, admin | issue for an approved application / revoke with `reason` |
 | GET | `/api/certificates/verify/<code>/` and `/verify/<code>/` | public | JSON and HTML check (FR-35) |
+| GET / POST / PATCH | `/api/evaluations/` | provider and supervisor write their own; student, coordinator, admin read | `{"application", "scores": {criterion: 1-5}, "notes"}`, one of each kind per application, editable until approval (FR-25, FR-26) |
+| GET | `/api/evaluations/criteria/` | anyone logged in | the criteria of each kind |
+| GET | `/api/evaluations/final-grade/?application=<id>` | whoever can see the application | provider 40% + supervisor 40% + reports 20%, pass at 60 (FR-27, BR-04) |
+| GET / POST | `/api/provider-ratings/` | the student rates 1-5 once after the training; provider, supervisor, coordinator read | FR-29 |
 | GET | `/api/stats/` | coordinator, admin | dashboard numbers (FR-36) |
 | GET | `/api/exports/applications/` | coordinator, admin | Excel file (FR-37) |
 | GET | `/api/archive/` | coordinator, admin | certified, rejected and withdrawn files (FR-39) |
 
-Stats, export and archive take the same filters: `year`, `department`, `provider`, `status`, `search`. When the coordinator moves an application to `approved`, the certificate is issued automatically and the application becomes `certified`. Set `TADREEB_INSTITUTION_NAME` and `TADREEB_CERTIFICATE_VERIFY_URL` (e.g. `https://front.example/verify/{code}`) in `.env` when needed.
+Stats, export and archive take the same filters: `year`, `department`, `provider`, `status`, `search`. The coordinator can approve only when the final grade is complete and passing; the certificate is then issued automatically and the application becomes `certified`. The weights and pass mark are `TADREEB_GRADE_WEIGHTS` and `TADREEB_PASS_GRADE` in `config/settings.py` (D-05). Set `TADREEB_INSTITUTION_NAME` and `TADREEB_CERTIFICATE_VERIFY_URL` (e.g. `https://front.example/verify/{code}`) in `.env` when needed.
 
 الـ APIs لازم تمشي على الاتفاق بـ [docs/TEAM_AGREEMENT.md](../docs/TEAM_AGREEMENT.md) (أسماء الحقول snake_case، التواريخ YYYY-MM-DD، رموز الحالات...).
 الواجهة حاليًا بتستخدم بيانات وهمية بنفس الشكل: شوفي `frontend/src/api/mock.js` لتعرفي شو الشكل المتوقع.

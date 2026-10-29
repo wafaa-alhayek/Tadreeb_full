@@ -51,7 +51,7 @@ python manage.py test             # run all tests
 | `imports` | Excel student import (FR-03), `seed_demo` command | **Maryam** |
 | `audit` | `AuditLog`, `AuditMixin`, `log_action()` (FR-40) | **Maryam** |
 | `training` | `DailyLog` (FR-20); next: attendance, plan, reports, visits | **Maryam** |
-| `evaluations` (not created yet) | evaluations, final grade (FR-25–29) | Wafaa |
+| `evaluations` | evaluations, final grade, provider ratings (FR-25–29) | Wafaa (built by Maryam) |
 | `certificates` (not created yet) | certificate PDF, QR, verification (FR-34, 35) | **Maryam** |
 
 ## Conventions (follow these exactly)

@@ -23,6 +23,8 @@ from accounts.permissions import IsCoordinator
 from applications.models import Application, Placement
 from applications.status import Status
 from certificates.models import Certificate
+from evaluations.grades import combine
+from evaluations.models import Evaluation
 from imports.students import XLSX_CONTENT_TYPE
 from providers.models import Opportunity, Provider
 from training.models import DailyLog, Report
@@ -72,7 +74,7 @@ def with_details(applications):
         "student__student_profile__specialization",
         "supervisor",
         "certificate",
-    ).prefetch_related("placements__opportunity__provider", "daily_logs", "reports")
+    ).prefetch_related("placements__opportunity__provider", "daily_logs", "reports", "evaluations")
 
 
 class Base(APIView):
@@ -175,6 +177,7 @@ EXPORT_COLUMNS = [
     "المشرف الأكاديمي",
     "الساعات المؤكدة",
     "معدل التقارير",
+    "الدرجة النهائية",
     "رقم الشهادة",
     "تاريخ التقديم",
 ]
@@ -184,10 +187,18 @@ def full_name(user):
     return (user.get_full_name() or user.username) if user else ""
 
 
+def export_final_grade(application, report_grades):
+    """BR-04's total from the prefetched evaluations and reports, without more queries."""
+    totals = {evaluation.kind: evaluation.total for evaluation in application.evaluations.all()}
+    reports = sum(report_grades) / len(report_grades) if report_grades else None
+    return combine(totals.get(Evaluation.Kind.PROVIDER), totals.get(Evaluation.Kind.SUPERVISOR), reports)["total"]
+
+
 def export_row(application):
     profile = getattr(application.student, "student_profile", None)
     placement = last_placement(application)
     grades = [r.grade for r in application.reports.all() if r.grade is not None]
+    final = export_final_grade(application, grades)
     certificate = getattr(application, "certificate", None)
     return [
         application.pk,
@@ -203,6 +214,7 @@ def export_row(application):
         full_name(application.supervisor),
         float(confirmed_hours(application)),
         round(float(sum(grades) / len(grades)), 2) if grades else None,
+        float(final) if final is not None else None,
         certificate.serial_number if certificate else "",
         timezone.localtime(application.submitted_at).date() if application.submitted_at else None,
     ]

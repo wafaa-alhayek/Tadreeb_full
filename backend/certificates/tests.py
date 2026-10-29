@@ -5,9 +5,10 @@ from rest_framework.test import APITestCase
 from accounts.models import Department, Specialization, StudentProfile, User
 from applications.models import Application, Placement
 from applications.status import Status
+from evaluations.models import PROVIDER_CRITERIA, SUPERVISOR_CRITERIA, Evaluation
 from notifications.models import Notification
 from providers.models import Opportunity, Provider
-from training.models import DailyLog
+from training.models import DailyLog, Report
 
 from .models import Certificate
 
@@ -61,6 +62,20 @@ class CertificateTestData(APITestCase):
         )
         # Not confirmed by the provider, so it doesn't count.
         DailyLog.objects.create(application=self.application, date=date(2026, 9, 4), hours=8, tasks="x")
+        # BR-04: approval needs a complete, passing final grade.
+        Evaluation.objects.create(
+            application=self.application,
+            kind=Evaluation.Kind.PROVIDER,
+            evaluator=self.provider_user,
+            scores=dict.fromkeys(PROVIDER_CRITERIA, 4),
+        )
+        Evaluation.objects.create(
+            application=self.application,
+            kind=Evaluation.Kind.SUPERVISOR,
+            evaluator=self.sup,
+            scores=dict.fromkeys(SUPERVISOR_CRITERIA, 4),
+        )
+        Report.objects.create(application=self.application, title="تقرير", file="reports/r.pdf", grade=80)
 
     def approve(self):
         self.client.force_authenticate(self.coordinator)
