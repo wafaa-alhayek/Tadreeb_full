@@ -10,9 +10,14 @@ from accounts.eligibility import check_eligibility
 from accounts.models import StudentProfile, User
 from accounts.permissions import HasRole, IsProvider, IsStudent
 
-from . import workflow
-from .models import Application, ApplicationDocument
-from .serializers import ApplicationDocumentSerializer, ApplicationSerializer, check_opportunities
+from . import exceptions, workflow
+from .models import Application, ApplicationDocument, ExceptionRequest
+from .serializers import (
+    ApplicationDocumentSerializer,
+    ApplicationSerializer,
+    ExceptionRequestSerializer,
+    check_opportunities,
+)
 from .status import Status
 
 
@@ -68,7 +73,10 @@ class ApplicationViewSet(viewsets.ModelViewSet):
             if user.role == User.Role.SUPERVISOR:
                 applications = applications.filter(supervisor=user)
             elif user.role == User.Role.PROVIDER:
-                applications = applications.filter(placements__opportunity__provider__user=user).distinct()
+                # Only where the student trains now: not after they move (FR-30) or withdraw.
+                applications = applications.filter(
+                    placements__opportunity__provider__user=user, placements__is_active=True
+                ).distinct()
             elif user.role not in (User.Role.COORDINATOR, User.Role.ADMIN):
                 applications = applications.none()
 
@@ -190,6 +198,120 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         application = self.get_object()
         workflow.confirm_placement(request, application)
         return self.fresh(application)
+
+
+class ExceptionRequestViewSet(
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    """/api/exception-requests/: change of provider, withdrawal, extension, issue (FR-30–33).
+
+    Who raises and who decides each kind: see applications/exceptions.py.
+    - student: their own requests
+    - supervisor: requests about their students
+    - provider: the issues it raised
+    - coordinator and admin: all
+    Filters: ?status=pending  ?kind=issue  ?application=5
+    """
+
+    serializer_class = ExceptionRequestSerializer
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return ExceptionRequest.objects.none()
+
+        user = self.request.user
+        requests = ExceptionRequest.objects.select_related(
+            "application__student", "requested_by", "decided_by", "new_opportunity"
+        )
+        if user.role == User.Role.STUDENT:
+            requests = requests.filter(application__student=user)
+        elif user.role == User.Role.SUPERVISOR:
+            requests = requests.filter(application__supervisor=user)
+        elif user.role == User.Role.PROVIDER:
+            requests = requests.filter(requested_by=user)
+        elif user.role not in (User.Role.COORDINATOR, User.Role.ADMIN):
+            requests = requests.none()
+
+        for field in ("status", "kind", "application"):
+            value = self.request.query_params.get(field)
+            if value:
+                requests = requests.filter(**{field: value})
+        return requests
+
+    def get_permissions(self):
+        if self.action in ("approve", "reject", "close"):
+            return [IsReviewer()]
+        return [IsAuthenticated()]
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("status", str, description="e.g. pending"),
+            OpenApiParameter("kind", str, description="change_provider | withdrawal | extension | issue"),
+            OpenApiParameter("application", int),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        data = serializer.validated_data
+        serializer.instance = exceptions.raise_request(
+            self.request,
+            data["application"],
+            data["kind"],
+            data["reason"],
+            new_opportunity=data.get("new_opportunity"),
+            new_end_date=data.get("new_end_date"),
+        )
+
+    def fresh(self, exception):
+        return Response(self.get_serializer(self.get_queryset().get(pk=exception.pk)).data)
+
+    @extend_schema(
+        request=inline_serializer(
+            "ApproveException",
+            {
+                "note": serializers.CharField(required=False, allow_blank=True),
+                "opportunity": serializers.IntegerField(required=False),
+            },
+        ),
+        responses=ExceptionRequestSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        """POST /api/exception-requests/<id>/approve/: {"note": "..."}
+
+        The coordinator confirming a provider change also sends {"opportunity": 7}, unless
+        the student's suggested opportunity is fine.
+        """
+        exception = self.get_object()
+        exceptions.approve(request, exception, request.data.get("note", ""), request.data.get("opportunity"))
+        return self.fresh(exception)
+
+    @extend_schema(
+        request=inline_serializer("RejectException", {"note": serializers.CharField()}),
+        responses=ExceptionRequestSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        """POST /api/exception-requests/<id>/reject/: {"note": "why"} (a note is required)."""
+        exception = self.get_object()
+        exceptions.reject(request, exception, request.data.get("note", ""))
+        return self.fresh(exception)
+
+    @extend_schema(
+        request=inline_serializer("CloseIssue", {"note": serializers.CharField(required=False, allow_blank=True)}),
+        responses=ExceptionRequestSerializer,
+    )
+    @action(detail=True, methods=["post"])
+    def close(self, request, pk=None):
+        """POST /api/exception-requests/<id>/close/: the supervisor closes an issue (FR-33)."""
+        exception = self.get_object()
+        exceptions.close(request, exception, request.data.get("note", ""))
+        return self.fresh(exception)
 
 
 class ApplicationDocumentViewSet(

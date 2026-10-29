@@ -13,7 +13,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework import serializers
 
 from accounts.views import DepartmentViewSet, StudentViewSet, me, my_student_profile
-from applications.views import ApplicationDocumentViewSet, ApplicationViewSet
+from applications.views import ApplicationDocumentViewSet, ApplicationViewSet, ExceptionRequestViewSet
 from audit.views import AuditLogViewSet
 from notifications.views import NotificationViewSet
 from providers.views import OpportunityViewSet, ProviderViewSet
@@ -36,6 +36,7 @@ router.register("opportunities", OpportunityViewSet, basename="opportunity")
 router.register("notifications", NotificationViewSet, basename="notification")
 router.register("applications", ApplicationViewSet, basename="application")
 router.register("application-documents", ApplicationDocumentViewSet, basename="application-document")
+router.register("exception-requests", ExceptionRequestViewSet, basename="exception-request")
 router.register("audit-logs", AuditLogViewSet, basename="audit-log")
 router.register("daily-logs", DailyLogViewSet, basename="daily-log")
 router.register("training-plans", TrainingPlanViewSet, basename="training-plan")
