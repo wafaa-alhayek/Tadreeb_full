@@ -236,6 +236,7 @@ class ReviewAndAllocationTests(ApplicationTestCase):
         response = self.post("confirm")
         self.assertEqual(response.status_code, 200, response.data)
         self.assertIsNotNone(response.data["placement"]["provider_confirmed_at"])
+        self.assertEqual(response.data["status"], "in_training")  # the training starts (FR-20)
         self.assertTrue(Notification.objects.filter(recipient=self.sara, title="تأكيد جهة التدريب").exists())
         self.assertTrue(Notification.objects.filter(recipient=self.supervisor, title="تأكيد جهة التدريب").exists())
         self.assertEqual(self.post("confirm").status_code, 400)  # only once

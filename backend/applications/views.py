@@ -90,7 +90,7 @@ class ApplicationViewSet(viewsets.ModelViewSet):
             return [IsStudent()]
         if self.action in ("transition", "allocate"):
             return [IsReviewer()]
-        if self.action == "assign_supervisor":
+        if self.action in ("assign_supervisor", "approve"):
             return [IsTrainingCoordinator()]
         if self.action == "confirm":
             return [IsProvider()]
@@ -189,12 +189,26 @@ class ApplicationViewSet(viewsets.ModelViewSet):
         workflow.assign_supervisor(request, application, supervisor)
         return self.fresh(application)
 
+    @extend_schema(request=None, responses=ApplicationSerializer)
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        """POST /api/applications/<id>/approve/: approve a completed training (Section 2.5).
+
+        The certificate is issued right after (FR-34), so the application ends up "certified".
+        """
+        application = self.get_object()
+        workflow.approve(request, application)
+        return self.fresh(application)
+
     # --- provider ---
 
     @extend_schema(request=None, responses=ApplicationSerializer)
     @action(detail=True, methods=["post"])
     def confirm(self, request, pk=None):
-        """POST /api/applications/<id>/confirm/: the provider accepts the allocated student (FR-16)."""
+        """POST /api/applications/<id>/confirm/: the provider accepts the allocated student (FR-16).
+
+        This starts the training: the application moves to "in_training".
+        """
         application = self.get_object()
         workflow.confirm_placement(request, application)
         return self.fresh(application)

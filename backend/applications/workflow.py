@@ -10,6 +10,7 @@ from rest_framework import serializers
 
 from accounts.models import StudentProfile, User
 from audit.models import AuditLog, log_action
+from certificates.services import issue_certificate
 from notifications.models import Notification, notify
 from providers.models import Opportunity, Provider
 
@@ -222,9 +223,14 @@ def confirm_placement(request, application):
     if placement.provider_confirmed_at:
         raise serializers.ValidationError("تم تأكيد قبول هذا الطالب مسبقًا.")
 
-    placement.provider_confirmed_at = timezone.now()
-    placement.save(update_fields=["provider_confirmed_at"])
-    log_action(request, AuditLog.Action.UPDATE, placement, {"provider_confirmed_at": {"from": None, "to": placement.provider_confirmed_at}})
+    with transaction.atomic():
+        placement.provider_confirmed_at = timezone.now()
+        placement.save(update_fields=["provider_confirmed_at"])
+        log_action(request, AuditLog.Action.UPDATE, placement, {"provider_confirmed_at": {"from": None, "to": placement.provider_confirmed_at}})
+        # Section 2.5: the provider's confirmation starts the training, so the student can
+        # log days (FR-20). After a change of provider (FR-30) it's already in training.
+        if application.status == Status.ASSIGNED:
+            change_status(request, application, Status.IN_TRAINING)
 
     for person in filter(None, [application.student, application.supervisor]):
         notify(
@@ -234,3 +240,16 @@ def confirm_placement(request, application):
             f"أكدت «{placement.provider.name}» قبول {application.student.get_full_name() or application.student.username}.",
         )
     return placement
+
+
+def approve(request, application):
+    """Section 2.5: the coordinator approves a completed training; the certificate follows (FR-34)."""
+    with transaction.atomic():
+        change_status(request, application, Status.APPROVED)
+        try:
+            certificate = issue_certificate(application)
+        except TransitionError as error:
+            # Undo the approval too, so the application stays "completed".
+            raise serializers.ValidationError(str(error))
+    log_action(request, AuditLog.Action.CREATE, certificate, {"serial_number": {"from": None, "to": certificate.serial_number}})
+    return certificate

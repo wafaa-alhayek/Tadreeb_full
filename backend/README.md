@@ -42,5 +42,37 @@ Student profile shape:
 
 Eligibility (BR-01) uses `TADREEB_MIN_CREDIT_HOURS` (90 for now, D-01 still open) and `TADREEB_MIN_GPA` (off) in `config/settings.py`. `academic_status` is `active`, `suspended` or `graduated`.
 
+### Application review and placement
+
+Everything happens on `/api/applications/<id>/`, and each role sees only its own applications:
+
+| Method | URL | Who | Notes |
+|---|---|---|---|
+| POST | `/api/applications/<id>/transition/` | supervisor, coordinator | `{"status": "under_review" \| "accepted" \| "rejected" \| "needs_changes" \| "withdrawn", "reason": "..."}` (FR-13, FR-31) |
+| POST | `/api/applications/<id>/assign-supervisor/` | coordinator | `{"supervisor": 4}` (FR-18) |
+| POST | `/api/applications/<id>/allocate/` | supervisor, coordinator | `{"opportunity": 7}`, creates the `Placement` (FR-14) |
+| POST | `/api/applications/<id>/confirm/` | provider | accepts the student (FR-16) and starts the training: `assigned → in_training` |
+| POST | `/api/applications/<id>/approve/` | coordinator | `completed → approved`, then the certificate is issued and the application becomes `certified` (FR-34) |
+
+Opportunity responses include `free_seats`.
+
+### Training follow-up, certificates and reports
+
+| Method | URL | Who | Notes |
+|---|---|---|---|
+| GET | `/api/provider-daily-logs/?confirmed=false` | provider | days written by its trainees, inside its placement dates |
+| POST | `/api/provider-daily-logs/<id>/confirm/` | provider | confirms attendance for the day (BR-05) |
+| GET / POST / DELETE | `/api/reports/` | student uploads (multipart `application`, `title`, `file`), supervisor and coordinator read | delete only before grading (FR-23) |
+| POST | `/api/reports/<id>/grade/` | supervisor | `{"grade": 0-100, "supervisor_comment"}` |
+| GET | `/api/placements/<id>/letter/` | student, supervisor, provider, coordinator | guidance letter PDF (FR-17) |
+| GET | `/api/certificates/` and `/api/certificates/<id>/pdf/` | student (own), supervisor (own students), coordinator | certificate with QR code (FR-34) |
+| POST | `/api/certificates/` and `/api/certificates/<id>/revoke/` | coordinator, admin | issue for an approved application / revoke with `reason` |
+| GET | `/api/certificates/verify/<code>/` and `/verify/<code>/` | public | JSON and HTML check (FR-35) |
+| GET | `/api/stats/` | coordinator, admin | dashboard numbers (FR-36) |
+| GET | `/api/exports/applications/` | coordinator, admin | Excel file (FR-37) |
+| GET | `/api/archive/` | coordinator, admin | certified, rejected and withdrawn files (FR-39) |
+
+Stats, export and archive take the same filters: `year`, `department`, `provider`, `status`, `search`. When the coordinator moves an application to `approved`, the certificate is issued automatically and the application becomes `certified`. Set `TADREEB_INSTITUTION_NAME` and `TADREEB_CERTIFICATE_VERIFY_URL` (e.g. `https://front.example/verify/{code}`) in `.env` when needed.
+
 الـ APIs لازم تمشي على الاتفاق بـ [docs/TEAM_AGREEMENT.md](../docs/TEAM_AGREEMENT.md) (أسماء الحقول snake_case، التواريخ YYYY-MM-DD، رموز الحالات...).
 الواجهة حاليًا بتستخدم بيانات وهمية بنفس الشكل: شوفي `frontend/src/api/mock.js` لتعرفي شو الشكل المتوقع.

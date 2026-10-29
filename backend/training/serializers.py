@@ -1,10 +1,12 @@
+from decimal import Decimal
+
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
 from applications.status import ACTIVE_PLACEMENT, Status
 
-from .models import DailyLog, TrainingPlan, Visit, WeeklyGoal
+from .models import DailyLog, Report, TrainingPlan, Visit, WeeklyGoal
 
 
 class DailyLogSerializer(serializers.ModelSerializer):
@@ -122,3 +124,76 @@ class VisitSerializer(serializers.ModelSerializer):
         if value > timezone.localdate():
             raise serializers.ValidationError("لا يمكن تسجيل زيارة في المستقبل.")
         return value
+
+
+class ProviderDailyLogSerializer(serializers.ModelSerializer):
+    """BR-05: what the provider sees of a student's day before confirming it."""
+
+    student_name = serializers.SerializerMethodField()
+    university_id = serializers.CharField(source="application.student.username", read_only=True)
+
+    class Meta:
+        model = DailyLog
+        fields = [
+            "id",
+            "application",
+            "student_name",
+            "university_id",
+            "date",
+            "hours",
+            "tasks",
+            "notes",
+            "confirmed_at",
+        ]
+        read_only_fields = fields
+
+    def get_student_name(self, log) -> str:
+        student = log.application.student
+        return student.get_full_name() or student.username
+
+
+# A student uploads reports while training and right after it ends (the final report).
+REPORT_STATUSES = {Status.IN_TRAINING, Status.COMPLETED}
+# Once the coordinator approved the training, the grades are final.
+GRADES_LOCKED = {Status.APPROVED, Status.CERTIFIED}
+
+
+class ReportSerializer(serializers.ModelSerializer):
+    """FR-23: the student uploads; the grade and comment come from the supervisor."""
+
+    student_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Report
+        fields = [
+            "id",
+            "application",
+            "student_name",
+            "title",
+            "file",
+            "notes",
+            "submitted_at",
+            "grade",
+            "supervisor_comment",
+            "graded_at",
+        ]
+        read_only_fields = ["submitted_at", "grade", "supervisor_comment", "graded_at"]
+
+    def get_student_name(self, report) -> str:
+        student = report.application.student
+        return student.get_full_name() or student.username
+
+    def validate_application(self, application):
+        user = self.context["request"].user
+        if application.student_id != user.id:
+            raise serializers.ValidationError("هذا الطلب ليس طلبك.")
+        if application.status not in REPORT_STATUSES:
+            raise serializers.ValidationError("تُرفع التقارير أثناء التدريب أو بعد انتهائه مباشرة.")
+        return application
+
+
+class ReportGradeSerializer(serializers.Serializer):
+    grade = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=Decimal("0"), max_value=Decimal("100")
+    )
+    supervisor_comment = serializers.CharField(required=False, allow_blank=True, default="")

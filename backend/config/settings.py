@@ -65,6 +65,8 @@ INSTALLED_APPS = [
     'imports',
     'audit',
     'training',
+    'certificates',
+    'analytics',
 ]
 
 MIDDLEWARE = [
@@ -243,3 +245,11 @@ TADREEB_MIN_CREDIT_HOURS = 90
 TADREEB_MIN_GPA = None
 # BR-03 / D-04: how many opportunities a student may rank in one application.
 TADREEB_MAX_PREFERENCES = 3
+# BR-06 / D-08: confirmed training hours that complete the training (proposed default, college to confirm).
+TADREEB_REQUIRED_TRAINING_HOURS = 240
+
+# Printed at the top of the guidance letter (FR-17) and the certificate (FR-34).
+TADREEB_INSTITUTION_NAME = os.environ.get("TADREEB_INSTITUTION_NAME", "جامعة الأزهر")
+# FR-35: the page the certificate's QR code opens, e.g. "https://tadreeb.netlify.app/verify/{code}".
+# Empty means the back-end's own page at /verify/<code>/.
+TADREEB_CERTIFICATE_VERIFY_URL = os.environ.get("TADREEB_CERTIFICATE_VERIFY_URL", "")

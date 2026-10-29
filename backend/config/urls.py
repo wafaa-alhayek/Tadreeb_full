@@ -12,12 +12,25 @@ from drf_spectacular.utils import extend_schema, inline_serializer
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework import serializers
 
+from analytics.views import ApplicationsExportView, ArchiveViewSet, StatsView
 from accounts.views import DepartmentViewSet, StudentViewSet, me, my_student_profile
 from applications.views import ApplicationDocumentViewSet, ApplicationViewSet, ExceptionRequestViewSet
 from audit.views import AuditLogViewSet
+from certificates.views import (
+    CertificateViewSet,
+    placement_letter,
+    verify_certificate,
+    verify_certificate_page,
+)
 from notifications.views import NotificationViewSet
 from providers.views import OpportunityViewSet, ProviderViewSet
-from training.views import DailyLogViewSet, TrainingPlanViewSet, VisitViewSet
+from training.views import (
+    DailyLogViewSet,
+    ProviderDailyLogViewSet,
+    ReportViewSet,
+    TrainingPlanViewSet,
+    VisitViewSet,
+)
 
 @extend_schema(
     responses=inline_serializer("Health", {"status": serializers.CharField()}),
@@ -40,7 +53,12 @@ router.register("exception-requests", ExceptionRequestViewSet, basename="excepti
 router.register("audit-logs", AuditLogViewSet, basename="audit-log")
 router.register("daily-logs", DailyLogViewSet, basename="daily-log")
 router.register("training-plans", TrainingPlanViewSet, basename="training-plan")
+router.register("provider-daily-logs", ProviderDailyLogViewSet, basename="provider-daily-log")
 router.register("visits", VisitViewSet, basename="visit")
+router.register("reports", ReportViewSet, basename="report")
+router.register("certificates", CertificateViewSet, basename="certificate")
+router.register("archive", ArchiveViewSet, basename="archive")
+
 urlpatterns = [
     # The bare address has no page of its own; send visitors to the API docs.
     path("", RedirectView.as_view(pattern_name="swagger-ui")),
@@ -58,5 +76,10 @@ urlpatterns = [
     # Before the router, so "me" isn't read as a student id.
     path("api/students/me/", my_student_profile),
     path("api/imports/", include("imports.urls")),
+    path("api/certificates/verify/<uuid:code>/", verify_certificate),
+    path("verify/<uuid:code>/", verify_certificate_page, name="certificate-verify-page"),
+    path("api/placements/<int:pk>/letter/", placement_letter),
+    path("api/stats/", StatsView.as_view()),
+    path("api/exports/applications/", ApplicationsExportView.as_view()),
     path("api/", include(router.urls)),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

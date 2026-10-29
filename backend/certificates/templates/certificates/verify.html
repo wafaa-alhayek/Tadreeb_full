@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>التحقق من شهادة التدريب</title>
+  <style>
+    body { font-family: Tahoma, Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 24px; color: #222; }
+    .card { max-width: 560px; margin: 40px auto; background: #fff; border-radius: 12px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+    h1 { font-size: 20px; color: #1F4E79; margin-top: 0; }
+    .badge { display: inline-block; padding: 6px 14px; border-radius: 20px; font-weight: bold; margin-bottom: 16px; }
+    .valid { background: #e3f6e8; color: #1b7a3a; }
+    .invalid { background: #fde8e8; color: #b42318; }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 8px 4px; border-bottom: 1px solid #eee; }
+    td:first-child { color: #666; width: 40%; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>{{ institution }}: التحقق من شهادة التدريب</h1>
+    {% if not certificate %}
+      <span class="badge invalid">لم يتم العثور على شهادة بهذا الرمز</span>
+    {% else %}
+      {% if certificate.is_valid %}
+        <span class="badge valid">شهادة صحيحة</span>
+      {% else %}
+        <span class="badge invalid">هذه الشهادة ملغاة منذ {{ certificate.revoked_at|date:"Y-m-d" }}</span>
+      {% endif %}
+      <table>
+        <tr><td>رقم الشهادة</td><td>{{ certificate.serial_number }}</td></tr>
+        <tr><td>اسم الطالب</td><td>{{ certificate.student_name }}</td></tr>
+        <tr><td>الرقم الجامعي</td><td>{{ certificate.university_id }}</td></tr>
+        {% if certificate.specialization %}<tr><td>التخصص</td><td>{{ certificate.specialization }}</td></tr>{% endif %}
+        <tr><td>جهة التدريب</td><td>{{ certificate.provider_name }}</td></tr>
+        <tr><td>فرصة التدريب</td><td>{{ certificate.opportunity_title }}</td></tr>
+        <tr><td>الفترة</td><td>{{ certificate.start_date|date:"Y-m-d" }} إلى {{ certificate.end_date|date:"Y-m-d" }}</td></tr>
+        <tr><td>عدد الساعات</td><td>{{ certificate.total_hours.normalize }}</td></tr>
+        <tr><td>تاريخ الإصدار</td><td>{{ certificate.issued_at|date:"Y-m-d" }}</td></tr>
+      </table>
+    {% endif %}
+  </div>
+</body>
+</html>

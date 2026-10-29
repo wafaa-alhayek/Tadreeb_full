@@ -28,7 +28,7 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 
 | الجدول | الحقول | FR |
 |---|---|---|
-| `Provider` ✅ | موجود. **ناقصه:** `accepted_specializations` (ManyToMany لـ `accounts.Specialization`) | FR-07, 08 |
+| `Provider` ✅ | موجود، مع `accepted_specializations` (ManyToMany لـ `accounts.Specialization`) | FR-07, 08 |
 | `Opportunity` ✅ | `provider`، `specialization` (FK لـ `accounts.Specialization`)، `title`، `description`، `tasks`، `requirements`، `seats`، `start_date`، `end_date`، `location`، `status` (`open` / `closed`) | FR-09, 10 |
 
 **`free_seats()`** ✅ (المقاعد الفاضية = `seats` ناقص عدد الـ `Placement` الفعّالة على الفرصة)، وبتطلع بالـ API كحقل `free_seats`.
@@ -48,10 +48,10 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 
 | الجدول | بيرتبط بـ | FR |
 |---|---|---|
-| `TrainingPlan` / أهداف أسبوعية | `Application` | FR-19 |
-| `DailyLog`: التاريخ، الساعات، المهام، ملاحظات، `provider_confirmed` (هاد هو الحضور، BR-05) | **`Placement`** (عشان الساعات تضل لما تتغير الجهة) | FR-20–22 |
-| `Report` + تعليق المشرف + **درجة** (لازمة لـ BR-04) | `Application` | FR-23 |
-| `Visit` | `Application` | FR-24 |
+| `TrainingPlan` / أهداف أسبوعية ✅ | `Application` | FR-19 |
+| `DailyLog` ✅: التاريخ، الساعات، المهام، ملاحظات، `confirmed_at` / `confirmed_by` (هاد هو الحضور، BR-05) | `Application`؛ الجهة بتشوف الأيام اللي ضمن فترة الـ `Placement` تبعها | FR-20–22 |
+| `Report` ✅ + تعليق المشرف + **درجة** من 100 (لازمة لـ BR-04، `average_report_grade()`) | `Application` | FR-23 |
+| `Visit` ✅ | `Application` | FR-24 |
 
 ### `evaluations`: وفاء
 
@@ -65,11 +65,11 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 
 | | بيرتبط بـ | FR |
 |---|---|---|
-| كتاب التوجيه PDF | `Placement` (لما يصير الطلب `assigned`) | FR-17 |
-| `Certificate`: رقم تسلسلي، QR، `issued_at`، `revoked_at` + صفحة تحقق عامة | `Application` (لما يصير `approved`) | FR-34, 35، BR-07 |
-| `AuditLog` | أي عملية | FR-40 |
-| لوحات الإحصائيات، التصدير، الأرشيف والبحث | كل الجداول | FR-36, 37, 39 |
-| استيراد الطلاب من Excel | `accounts` | FR-03 |
+| كتاب التوجيه PDF ✅ | `Placement` (لما يصير الطلب `assigned`) | FR-17 |
+| `Certificate` ✅: رقم تسلسلي، QR، `issued_at`، `revoked_at` + صفحة تحقق عامة | `Application` (لما يصير `approved`) | FR-34, 35، BR-07 |
+| `AuditLog` ✅ | أي عملية | FR-40 |
+| لوحات الإحصائيات، التصدير، الأرشيف والبحث ✅ (`analytics`) | كل الجداول | FR-36, 37, 39 |
+| استيراد الطلاب من Excel ✅ | `accounts` | FR-03 |
 
 ### جاهز ✅
 
@@ -83,13 +83,26 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 |---|---|---|
 | 1 | ✅ `Application` + `Preference` + `ApplicationDocument` + `StatusChange` | ✅ `Opportunity` + `accepted_specializations` |
 | 2 | ✅ المراجعة والتوزيع: `Placement` + `free_seats()`، تعيين المشرف، تأكيد الجهة، الانسحاب + الإشعارات وسجل العمليات | ✅ استيراد Excel (FR-03)، ✅ سجل العمليات (FR-40)، ✅ السجل اليومي (FR-20) |
-| 3 | ✅ `ExceptionRequest`: تغيير الجهة، الانسحاب، التمديد، المشاكل | كتاب التوجيه (FR-17)، `training` (FR-19–24) |
-| 4 | `evaluations` + الدرجة النهائية | الشهادات، Audit Log، لوحات الإحصائيات والتصدير |
+| 3 | ✅ `ExceptionRequest`: تغيير الجهة، الانسحاب، التمديد، المشاكل | ✅ كتاب التوجيه (FR-17)، تأكيد الحضور من الجهة، `training` (FR-19–24) |
+| 4 | `evaluations` + الدرجة النهائية | ✅ الشهادات، Audit Log، لوحات الإحصائيات والتصدير والأرشيف |
+
+## الحالة الفعلية
+
+- شغل مريم بالخطة كله صار إله models وAPI واختبارات: `training` (FR-19–24، مع تأكيد الحضور من الجهة)، كتاب التوجيه، الشهادات والتحقق العام، الإحصائيات والتصدير والأرشيف.
+- المراجعة والتوزيع (شغل وفاء) على `/api/applications/<id>/…`: `transition`، `allocate`، `assign-supervisor`، `confirm`.
+- لما الجهة تأكد قبول الطالب (`confirm`، FR-16) الطلب بينتقل لحاله من `assigned` لـ `in_training`، وهيك الطالب بيقدر يبلش يسجل أيامه (FR-20). بعد تغيير الجهة (FR-30) الطلب أصلًا `in_training` فما بيتغير.
+- المنسق بيعتمد التدريب عبر `POST /api/applications/<id>/approve/` (`completed → approved`)، والشهادة بتطلع لحالها والطلب بيصير `certified`. لو ما انعملت الشهادة (مثلًا ما في `Placement`) الاعتماد كله بيرجع وما بيتغير شي. لما تجهز التقييمات لازم نضيف هون شرط النجاح (BR-04).
+- `DailyLog` لسا مرتبط بـ `Application`. الجهة بتشوف وبتأكد الأيام اللي ضمن فترة توزيعها، فلما تتغير الجهة (FR-30) الأيام القديمة بتضل مع الجهة القديمة بدون ما نغيّر الجدول.
+- ملفات الـ PDF بتنعمل بـ ReportLab مع `arabic-reshaper` و`python-bidi`، وخط Amiri (رخصة OFL) موجود بـ `backend/certificates/fonts/`. اسم الجامعة برابط QR بينضبطوا من `.env`: `TADREEB_INSTITUTION_NAME` و`TADREEB_CERTIFICATE_VERIFY_URL`.
+- الاستثناءات (FR-30–33، شغل وفاء) على `/api/exception-requests/` (PR #28). المتبقي: التقييمات والدرجة النهائية (FR-25–29). الدرجة النهائية بتقدر تستخدم `training.models.average_report_grade()` لحصة التقارير.
+- إكمال التدريب التلقائي (BR-06): لما الجهة تأكد يوم ويوصل مجموع الساعات المؤكدة لـ `TADREEB_REQUIRED_TRAINING_HOURS` (مبدئيًا 240)، النظام بينقل الطلب لـ `completed` وببعت إشعار للطالب والمشرف. الرقم النهائي وشرط عدد الأسابيع لسا بينتظروا قرار D-08.
+- تحقق بتاريخ 29-10-2026 بعد الدمج مع `main`: `manage.py check`، `makemigrations --check --dry-run`، و229 اختبار ناجح.
 
 ## قرارات لسا مفتوحة (Appendix A)
 
 - **D-01:** عدد الساعات المعتمدة للأهلية (حاليًا 90 بالكود)
-- **D-08 / BR-06:** كم ساعة وكم أسبوع عشان يكتمل التدريب
+- **D-08 / BR-06:** كم ساعة وكم أسبوع عشان يكتمل التدريب (حاليًا 240 ساعة بالكود، بدون شرط أسابيع)
+- **قاعدة البيانات:** الـ SRS بيقول PostgreSQL، بس حساب PythonAnywhere المجاني ما فيه PostgreSQL. حاليًا SQLite وشغالة. للعرض النهائي يا بنضل على SQLite، يا بندفع، يا بننقل لاستضافة تانية.
 - **`needs_changes`:** مش بالـ SRS، بس موجودة باتفاق الفريق (TEAM_AGREEMENT). بنضلها؟
 
 ## الاستضافة (تقرر)
