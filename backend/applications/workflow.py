@@ -98,26 +98,45 @@ def assign_supervisor(request, application, supervisor):
     )
 
 
+def lock_available_opportunity(application, opportunity_id):
+    """The opportunity, if the student can be placed there: open, in their specialization,
+    with a free seat. Call inside transaction.atomic(): the row stays locked until the end,
+    so two placements can't take the last seat at once."""
+    opportunity = (
+        Opportunity.objects.select_for_update()
+        .select_related("provider")
+        .filter(id=opportunity_id)
+        .first()
+    )
+    if opportunity is None:
+        raise serializers.ValidationError({"opportunity": "الفرصة غير موجودة."})
+    if opportunity.status != Opportunity.Status.OPEN or opportunity.provider.status != Provider.Status.APPROVED:
+        raise serializers.ValidationError({"opportunity": "الفرصة غير متاحة."})
+
+    profile = StudentProfile.objects.filter(user=application.student).first()
+    if profile and profile.specialization_id and profile.specialization_id != opportunity.specialization_id:
+        raise serializers.ValidationError({"opportunity": "الفرصة ليست لتخصص الطالب."})
+    if opportunity.free_seats() < 1:
+        raise serializers.ValidationError({"opportunity": "لا توجد مقاعد فارغة في هذه الفرصة."})
+    return opportunity
+
+
+def notify_new_placement(placement):
+    """Section 2.5: "provider notified". (The assignment letter, FR-17, hooks in here later.)"""
+    if placement.provider.user:
+        student = placement.application.student
+        notify(
+            placement.provider.user,
+            Notification.Kind.TRAINING,
+            "طالب موزّع عليكم",
+            f"تم توزيع {student.get_full_name() or student.username} على «{placement.opportunity.title}». يرجى تأكيد قبوله.",
+        )
+
+
 def allocate(request, application, opportunity_id):
     """FR-14: place an accepted student at an opportunity, respecting seats and specialization."""
     with transaction.atomic():
-        # Lock the opportunity row so two allocations can't take the last seat at once.
-        opportunity = (
-            Opportunity.objects.select_for_update()
-            .select_related("provider")
-            .filter(id=opportunity_id)
-            .first()
-        )
-        if opportunity is None:
-            raise serializers.ValidationError({"opportunity": "الفرصة غير موجودة."})
-        if opportunity.status != Opportunity.Status.OPEN or opportunity.provider.status != Provider.Status.APPROVED:
-            raise serializers.ValidationError({"opportunity": "الفرصة غير متاحة."})
-
-        profile = StudentProfile.objects.filter(user=application.student).first()
-        if profile and profile.specialization_id and profile.specialization_id != opportunity.specialization_id:
-            raise serializers.ValidationError({"opportunity": "الفرصة ليست لتخصص الطالب."})
-        if opportunity.free_seats() < 1:
-            raise serializers.ValidationError({"opportunity": "لا توجد مقاعد فارغة في هذه الفرصة."})
+        opportunity = lock_available_opportunity(application, opportunity_id)
 
         # FR-18: every placed student has exactly one supervisor.
         if application.supervisor is None:
@@ -132,13 +151,67 @@ def allocate(request, application, opportunity_id):
         )
         log_action(request, AuditLog.Action.CREATE, placement, {"opportunity": {"from": None, "to": opportunity.id}})
 
-    # Section 2.5: "provider notified". (The assignment letter, FR-17, hooks in here later.)
-    if opportunity.provider.user:
+    notify_new_placement(placement)
+    return placement
+
+
+def change_provider(request, application, opportunity_id, reason):
+    """FR-30: close the current placement and open one at another opportunity.
+
+    The old placement stays in the database with its daily logs, so its hours still count
+    (D-12). The status doesn't change: the student keeps training, now somewhere else, and
+    the new provider confirms them like any allocation (FR-16).
+    """
+    with transaction.atomic():
+        old = application.active_placement
+        if old is None:
+            raise serializers.ValidationError("لا يوجد تدريب فعّال لهذا الطالب.")
+        opportunity = lock_available_opportunity(application, opportunity_id)
+        if opportunity.id == old.opportunity_id:
+            raise serializers.ValidationError({"opportunity": "الطالب يتدرب في هذه الفرصة حاليًا."})
+        today = timezone.localdate()
+        if opportunity.end_date <= today:
+            raise serializers.ValidationError({"opportunity": "انتهت فترة هذه الفرصة."})
+
+        old.close(f"تغيير جهة التدريب: {reason}")
+        log_action(request, AuditLog.Action.UPDATE, old, {"is_active": {"from": True, "to": False}})
+        placement = Placement.objects.create(
+            application=application,
+            opportunity=opportunity,
+            start_date=max(today, opportunity.start_date),
+            end_date=opportunity.end_date,
+        )
+        log_action(request, AuditLog.Action.CREATE, placement, {"opportunity": {"from": old.opportunity_id, "to": opportunity.id}})
+
+    if old.provider.user:
         notify(
-            opportunity.provider.user,
+            old.provider.user,
             Notification.Kind.TRAINING,
-            "طالب موزّع عليكم",
-            f"تم توزيع {application.student.get_full_name() or application.student.username} على «{opportunity.title}». يرجى تأكيد قبوله.",
+            "نقل متدرب",
+            f"انتقل {application.student.get_full_name() or application.student.username} إلى جهة تدريب أخرى.",
+        )
+    notify_new_placement(placement)
+    return placement
+
+
+def extend(request, application, new_end_date):
+    """FR-32: move the placement's end date later."""
+    placement = application.active_placement
+    if placement is None:
+        raise serializers.ValidationError("لا يوجد تدريب فعّال لهذا الطالب.")
+    if new_end_date <= placement.end_date:
+        raise serializers.ValidationError({"new_end_date": "يجب أن يكون التاريخ الجديد بعد تاريخ الانتهاء الحالي."})
+
+    before = placement.end_date
+    placement.end_date = new_end_date
+    placement.save(update_fields=["end_date"])
+    log_action(request, AuditLog.Action.UPDATE, placement, {"end_date": {"from": before, "to": new_end_date}})
+    if placement.provider.user:
+        notify(
+            placement.provider.user,
+            Notification.Kind.TRAINING,
+            "تمديد فترة التدريب",
+            f"تم تمديد تدريب {application.student.get_full_name() or application.student.username} حتى {new_end_date}.",
         )
     return placement
 

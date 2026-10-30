@@ -46,7 +46,7 @@ python manage.py test             # run all tests
 | `config/` | settings, main `urls.py` (router) | shared |
 | `accounts` | `User` with 5 roles, `Department`, `Specialization`, `StudentProfile`, eligibility (BR-01), permission classes | Wafaa |
 | `providers` | `Provider`, `Opportunity` (FR-07–10) | **Maryam** |
-| `applications` | `Application`, `Preference`, `ApplicationDocument`, `StatusChange`, the status engine (`status.py`); later `Placement`, review/allocation, exceptions | Wafaa |
+| `applications` | `Application`, `Preference`, `ApplicationDocument`, `StatusChange`, the status engine (`status.py`), `Placement`, review and allocation (`workflow.py`), `ExceptionRequest` (`exceptions.py`) | Wafaa |
 | `notifications` | `Notification` + `notify()` (FR-38) | Wafaa |
 | `imports` | Excel student import (FR-03), `seed_demo` command | **Maryam** |
 | `audit` | `AuditLog`, `AuditMixin`, `log_action()` (FR-40) | **Maryam** |
@@ -168,7 +168,7 @@ Never commit directly to `main`. Never commit `.env`, `db.sqlite3`, `venv/` or `
 - Provider endpoint to confirm a day: set `confirmed_at` and `confirmed_by`. Only the provider of that student's placement may do it (◐). Confirmed days can't be edited by the student (already enforced).
 - Attendance percentage per application, plus a per-day list for the student's calendar page (`frontend/src/pages/student/Attendance.jsx` shows a monthly calendar, a percentage, and rows with status حاضر / غائب / مرض). Proposed mapping: present = confirmed log; absent = working day with no confirmed log; sick/excused needs an `absence_reason` field. Agree the definition of "working day" with the team first.
 - FR-22: when attendance drops below `TADREEB_ATTENDANCE_ALERT` (80%), `notify()` the student and the supervisor (`application.supervisor`).
-- **Coordination:** the provider is known through the student's placement. `Placement` is Wafaa's next task. Until it exists, ask Wafaa how to find "the provider of this application".
+- **The provider of a student:** `application.active_placement.provider` (its login is `provider.user`). So a provider may confirm a day only if `request.user == application.active_placement.provider.user`. `active_placement` is `None` before allocation and after withdrawal.
 
 **2. Reports (FR-23)**: `training` app.
 - "Let students upload periodic reports and let supervisors comment on them." `Report(application, title, file, submitted_at, supervisor_comment, grade)`. The **grade** is needed for the final grade: BR-04 = provider 40% + supervisor 40% + **reports 20%**.
@@ -178,7 +178,7 @@ Never commit directly to `main`. Never commit `.env`, `db.sqlite3`, `venv/` or `
 
 **4. Field visits (FR-24, Should)**: "Let supervisors record field visits: date, notes, follow-up actions." Supervisor of that application only.
 
-**5. Assignment letter PDF (FR-17, Must)**: "Generate an assignment letter as a PDF once allocation is final." Arabic, RTL (NFR-11). Library: ReportLab or WeasyPrint (SRS 1.7). **Depends on Wafaa's `Placement`** (provider, opportunity, dates). Plan the template and PDF code now and hook it up when `Placement` is merged.
+**5. Assignment letter PDF (FR-17, Must)**: "Generate an assignment letter as a PDF once allocation is final." Arabic, RTL (NFR-11). Library: ReportLab or WeasyPrint (SRS 1.7). Hook it into `allocate()` in `applications/workflow.py`, through `notify_new_placement(placement)`, which runs for a first allocation and for a change of provider. `placement` has the opportunity, provider and dates.
 
 **6. Certificates (FR-34, FR-35, BR-07, NFR-19)**: new `certificates` app.
 - "Issue a certificate PDF with a unique serial number and a QR code once training is approved." Library `qrcode`.
@@ -191,12 +191,12 @@ Never commit directly to `main`. Never commit `.env`, `db.sqlite3`, `venv/` or `
 - FR-37: export lists and reports to Excel (`openpyxl`, already installed) and PDF. NFR-07: up to 1,000 records in under 10 seconds.
 - FR-39: archive uploaded files and search across students, applications and providers.
 
-## Wafaa is building (don't build these)
+## Wafaa's part (don't build these)
 
-Review and allocation (FR-13, FR-14, FR-18), `Placement` (one active per student, BR-02) and `Opportunity.free_seats()`, provider confirmation of an allocated student (FR-16), exceptions (FR-30–33), evaluations and the final grade (FR-25–29). Ask her before changing `accounts`, `applications`, `notifications` or `config/urls.py` beyond registering your own routes.
+Done: review and allocation (FR-13, FR-14, FR-18), `Placement` (one active per student, BR-02) and `Opportunity.free_seats()`, provider confirmation of an allocated student (FR-16), exceptions (FR-30–33: change of provider, withdrawal, extension, issues at `/api/exception-requests/`). Next: evaluations and the final grade (FR-25–29). Ask her before changing `accounts`, `applications`, `notifications` or `config/urls.py` beyond registering your own routes.
 
 ## Open points to coordinate
 
-- **`DailyLog` links to `Application`.** The plan suggested linking it to `Placement`, so hours from an old provider stay separate after a provider change (FR-30, D-12). When `Placement` exists, decide with Wafaa whether to add a `placement` field to `DailyLog`.
+- **`DailyLog` links to `Application`.** The plan suggested linking it to `Placement`, so hours from an old provider stay separate after a provider change (FR-30, D-12). `Placement` exists now. Suggestion: add a nullable `placement` field to `DailyLog`, filled from `application.active_placement` when the student writes the day. A change of provider closes the old placement and opens a new one (`workflow.change_provider`), so hours per provider stay separate.
 - **Who moves `in_training → completed`?** It's a system move when BR-06 is met ("Training is complete after [N] hours over at least [N] weeks", D-08). Decided: the hours are per department, `Department.required_training_hours`, falling back to `TADREEB_REQUIRED_TRAINING_HOURS`. The hours come from your daily logs; the move uses `application.move_to(Status.COMPLETED)`.
 - **Open decisions:** D-01 (credit hours, currently 90), D-05 (grade weights), D-07 (alert threshold 80%), D-08 (each department's hours, and whether there's a weeks condition), whether to keep `needs_changes`, and PostgreSQL vs SQLite for the final demo.

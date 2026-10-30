@@ -160,6 +160,71 @@ class Placement(models.Model):
         self.save()
 
 
+class ExceptionRequest(models.Model):
+    """FR-30–33: something that breaks the normal path once the student is placed.
+
+    - change_provider (FR-30): student asks, supervisor approves, coordinator confirms (D-12)
+    - withdrawal (FR-31): student asks, supervisor approves
+    - extension (FR-32): a new end date for the placement
+    - issue (FR-33): a problem raised to the supervisor and tracked until closed
+    The rules and what each decision does live in applications/exceptions.py.
+    """
+
+    class Kind(models.TextChoices):
+        CHANGE_PROVIDER = "change_provider", "تغيير جهة التدريب"
+        WITHDRAWAL = "withdrawal", "انسحاب من التدريب"
+        EXTENSION = "extension", "تمديد فترة التدريب"
+        ISSUE = "issue", "مشكلة أثناء التدريب"
+
+    class State(models.TextChoices):
+        PENDING = "pending", "بانتظار المشرف"
+        SUPERVISOR_APPROVED = "supervisor_approved", "بانتظار تأكيد المنسق"  # change_provider only
+        APPROVED = "approved", "تمت الموافقة"
+        REJECTED = "rejected", "مرفوض"
+        CLOSED = "closed", "مغلق"  # issue only
+
+    OPEN_STATES = [State.PENDING, State.SUPERVISOR_APPROVED]
+
+    application = models.ForeignKey(
+        Application, on_delete=models.CASCADE, related_name="exception_requests"
+    )
+    kind = models.CharField(max_length=20, choices=Kind.choices)
+    status = models.CharField(max_length=20, choices=State.choices, default=State.PENDING)
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    reason = models.TextField()
+    # change_provider: the student may suggest one; the coordinator picks the final one.
+    new_opportunity = models.ForeignKey(
+        "providers.Opportunity", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    new_end_date = models.DateField(null=True, blank=True)  # extension
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    decision_note = models.TextField(blank=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["application", "kind"],
+                condition=models.Q(status__in=["pending", "supervisor_approved"]),
+                name="one_open_exception_per_kind",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.get_kind_display()}: {self.application.student.username}"
+
+    @property
+    def is_open(self):
+        return self.status in self.OPEN_STATES
+
+
 class StatusChange(models.Model):
     """One step in an application's history: the student's timeline (FR-12) and a record (FR-40)."""
 
