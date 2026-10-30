@@ -42,7 +42,7 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 | `ApplicationDocument` ✅ | `application`، `title`، `file` (PDF/JPG/PNG حتى 5MB) | FR-11، BR-08 |
 | `StatusChange` ✅ | `application`، `from_status`، `to_status`، `changed_by`، `reason`، `created_at` | FR-12 (الطالب بيشوف المسار)، FR-40 |
 | `Placement` ✅ | `application`، `opportunity`، `start_date`، `end_date`، `provider_confirmed_at`، `closed_at`، `close_reason`، `is_active` | FR-14, 16, 30–32، BR-02 |
-| `ExceptionRequest` | `application`، `kind` (change_provider / withdrawal / extension / issue)، `requested_by`، `reason`، `status`، `new_opportunity`، `new_end_date`، `decided_by`، `decision_note` | FR-30–33 |
+| `ExceptionRequest` ✅ | `application`، `kind` (change_provider / withdrawal / extension / issue)، `requested_by`، `reason`، `status` (pending / supervisor_approved / approved / rejected / closed)، `new_opportunity`، `new_end_date`، `decided_by`، `decision_note`، `decided_at` | FR-30–33 |
 
 ### `training`: مريم
 
@@ -83,7 +83,7 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 |---|---|---|
 | 1 | ✅ `Application` + `Preference` + `ApplicationDocument` + `StatusChange` | ✅ `Opportunity` + `accepted_specializations` |
 | 2 | ✅ المراجعة والتوزيع: `Placement` + `free_seats()`، تعيين المشرف، تأكيد الجهة، الانسحاب + الإشعارات وسجل العمليات | ✅ استيراد Excel (FR-03)، ✅ سجل العمليات (FR-40)، ✅ السجل اليومي (FR-20) |
-| 3 | `ExceptionRequest` | ✅ كتاب التوجيه (FR-17)، تأكيد الحضور من الجهة، `training` (FR-19–24) |
+| 3 | ✅ `ExceptionRequest`: تغيير الجهة، الانسحاب، التمديد، المشاكل | ✅ كتاب التوجيه (FR-17)، تأكيد الحضور من الجهة، `training` (FR-19–24) |
 | 4 | ✅ `evaluations` + الدرجة النهائية (بنتها مريم) | ✅ الشهادات، Audit Log، لوحات الإحصائيات والتصدير والأرشيف |
 
 ## الحالة الفعلية
@@ -95,7 +95,7 @@ accounts.User (student) ── Application ──┬── Preference ×3 ──
 - `DailyLog` لسا مرتبط بـ `Application`. الجهة بتشوف وبتأكد الأيام اللي ضمن فترة توزيعها، فلما تتغير الجهة (FR-30) الأيام القديمة بتضل مع الجهة القديمة بدون ما نغيّر الجدول.
 - ملفات الـ PDF بتنعمل بـ ReportLab مع `arabic-reshaper` و`python-bidi`، وخط Amiri (رخصة OFL) موجود بـ `backend/certificates/fonts/`. اسم الجامعة برابط QR بينضبطوا من `.env`: `TADREEB_INSTITUTION_NAME` و`TADREEB_CERTIFICATE_VERIFY_URL`.
 - التقييمات (FR-25–29) صارت بـ app اسمه `evaluations`: الجهة والمشرف كل واحد بيقيّم مرة وبيقدر يعدّل لحد الاعتماد، والطالب بيقيّم الجهة بعد ما يخلص. لما تكتمل الدرجات لتدريب `completed` المنسق بيوصله إشعار «تدريب جاهز للاعتماد». الدرجة النهائية كمان بتطلع بملف Excel.
-- المتبقي (شغل وفاء): `ExceptionRequest` (FR-30–33، PR #28 مفتوح).
+- الاستثناءات (FR-30–33، شغل وفاء) على `/api/exception-requests/`: تغيير الجهة، الانسحاب، التمديد، المشاكل (PR #28).
 - إكمال التدريب التلقائي (BR-06): لما الجهة تأكد يوم ويوصل مجموع الساعات المؤكدة لـ `TADREEB_REQUIRED_TRAINING_HOURS` (مبدئيًا 240)، النظام بينقل الطلب لـ `completed` وببعت إشعار للطالب والمشرف. الرقم النهائي وشرط عدد الأسابيع لسا بينتظروا قرار D-08.
 - تحقق بتاريخ 29-10-2026: `manage.py check`، `makemigrations --check --dry-run`، `spectacular --validate`، و247 اختبار ناجح.
 
