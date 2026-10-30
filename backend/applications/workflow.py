@@ -11,6 +11,7 @@ from rest_framework import serializers
 from accounts.models import StudentProfile, User
 from audit.models import AuditLog, log_action
 from certificates.services import issue_certificate
+from evaluations.grades import final_grade
 from notifications.models import Notification, notify
 from providers.models import Opportunity, Provider
 
@@ -243,7 +244,20 @@ def confirm_placement(request, application):
 
 
 def approve(request, application):
-    """Section 2.5: the coordinator approves a completed training; the certificate follows (FR-34)."""
+    """Section 2.5: the coordinator approves a completed training; the certificate follows (FR-34).
+
+    BR-04: only once the final grade is complete and passes.
+    """
+    grade = final_grade(application)
+    if grade["total"] is None:
+        missing = {"provider": "تقييم جهة التدريب", "supervisor": "تقييم المشرف", "reports": "درجة التقارير"}
+        raise serializers.ValidationError(
+            "لا يمكن الاعتماد قبل اكتمال الدرجات: " + "، ".join(missing[key] for key in grade["missing"])
+        )
+    if not grade["passed"]:
+        raise serializers.ValidationError(
+            f"الدرجة النهائية {grade['total']} أقل من درجة النجاح {grade['pass_grade']}."
+        )
     with transaction.atomic():
         change_status(request, application, Status.APPROVED)
         try:

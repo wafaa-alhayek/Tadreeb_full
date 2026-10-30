@@ -29,6 +29,8 @@ class SpecializationInline(admin.TabularInline):
 
 @admin.register(Department)
 class DepartmentAdmin(admin.ModelAdmin):
+    list_display = ("name", "required_training_hours")
+    list_editable = ("required_training_hours",)
     inlines = [SpecializationInline]
     search_fields = ("name",)
 

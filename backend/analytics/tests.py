@@ -120,7 +120,8 @@ class ExportTests(AnalyticsTestData):
         by_id = {row[1]: row for row in rows[1:]}
         self.assertEqual(by_id["20250001"][6], "شركة التقنية")
         self.assertEqual(by_id["20250001"][11], 6)
-        self.assertEqual(by_id["20250002"][13], "TDR-2026-00001")
+        self.assertEqual(by_id["20250002"][14], "TDR-2026-00001")
+        self.assertIsNone(by_id["20250001"][13])  # no evaluations yet
 
     def test_export_uses_the_filters(self):
         rows = self.read(self.client.get(f"/api/exports/applications/?status={Status.REJECTED}"))

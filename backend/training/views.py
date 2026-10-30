@@ -1,18 +1,21 @@
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema
+from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
 from rest_framework import mixins, serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from accounts.models import User
+from applications.models import Application
 from accounts.permissions import HasRole, IsProvider, IsStudent, IsSupervisor
 from applications.status import Status
 from audit.models import AuditLog, diff, log_action, snapshot
+from evaluations.grades import is_ready, notify_if_ready
 from notifications.models import Notification, notify
 
-from .models import DailyLog, Report, TrainingPlan, Visit, complete_if_done
+from .models import DailyLog, Report, TrainingPlan, Visit, complete_if_done, confirmed_hours, required_hours
 from .serializers import (
     GRADES_LOCKED,
     DailyLogSerializer,
@@ -46,6 +49,35 @@ class DailyLogViewSet(viewsets.ModelViewSet):
         if log.confirmed_at:
             raise serializers.ValidationError("لا يمكن حذف يوم أكدته الجهة.")
         log.delete()
+
+    @extend_schema(
+        parameters=[OpenApiParameter("application", int, required=True)],
+        responses=inline_serializer(
+            "TrainingProgress",
+            {
+                "confirmed_hours": serializers.DecimalField(max_digits=7, decimal_places=2),
+                "required_hours": serializers.IntegerField(),
+                "remaining_hours": serializers.DecimalField(max_digits=7, decimal_places=2),
+                "percent": serializers.IntegerField(),
+            },
+        ),
+    )
+    @action(detail=False, methods=["get"])
+    def progress(self, request):
+        """GET /api/daily-logs/progress/?application=3: confirmed hours out of the department's (BR-06)."""
+        application_id = request.query_params.get("application", "")
+        if not application_id.isdigit():
+            raise serializers.ValidationError({"application": "أرسل رقم الطلب."})
+        application = get_object_or_404(Application, pk=application_id, student=request.user)
+        done, required = confirmed_hours(application), required_hours(application)
+        return Response(
+            {
+                "confirmed_hours": done,
+                "required_hours": required,
+                "remaining_hours": max(required - done, 0),
+                "percent": min(int(done * 100 / required), 100),
+            }
+        )
 
 
 class IsStudentOrSupervisor(HasRole):
@@ -173,7 +205,9 @@ class ProviderDailyLogViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, 
             log.confirmed_by = request.user
             log.save()
             log_action(request, AuditLog.Action.UPDATE, log, diff(before, snapshot(log)))
-            complete_if_done(log.application)
+            if complete_if_done(log.application):
+                # The evaluations may already be in, so it can be approved right away.
+                notify_if_ready(log.application, was_ready=False)
         return Response(self.get_serializer(log).data)
 
 
@@ -244,6 +278,7 @@ class ReportViewSet(
         data = ReportGradeSerializer(data=request.data)
         data.is_valid(raise_exception=True)
         before = snapshot(report)
+        was_ready = is_ready(report.application)
         report.grade = data.validated_data["grade"]
         report.supervisor_comment = data.validated_data["supervisor_comment"]
         report.graded_at = timezone.now()
@@ -256,4 +291,5 @@ class ReportViewSet(
             "تم تقييم تقريرك",
             f"{report.title}: {report.grade}/100",
         )
+        notify_if_ready(report.application, was_ready)
         return Response(self.get_serializer(report).data)
