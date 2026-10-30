@@ -19,6 +19,11 @@ class User(AbstractUser):
 
 class Department(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    # BR-06 / D-08: each department sets its own training hours; empty means the general
+    # default, TADREEB_REQUIRED_TRAINING_HOURS.
+    required_training_hours = models.PositiveIntegerField(
+        "ساعات التدريب المطلوبة", null=True, blank=True
+    )
 
     def __str__(self):
         return self.name

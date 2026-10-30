@@ -25,7 +25,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Department
-        fields = ["id", "name", "specializations"]
+        fields = ["id", "name", "required_training_hours", "specializations"]
 
 
 class StudentProfileSerializer(serializers.ModelSerializer):

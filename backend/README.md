@@ -61,7 +61,8 @@ Opportunity responses include `free_seats`.
 | Method | URL | Who | Notes |
 |---|---|---|---|
 | GET | `/api/provider-daily-logs/?confirmed=false` | provider | days written by its trainees, inside its placement dates |
-| POST | `/api/provider-daily-logs/<id>/confirm/` | provider | confirms attendance for the day (BR-05) |
+| POST | `/api/provider-daily-logs/<id>/confirm/` | provider | confirms attendance for the day (BR-05); completes the training once the department's hours are reached (BR-06) |
+| GET | `/api/daily-logs/progress/?application=<id>` | student | confirmed hours, the department's required hours, remaining and percent |
 | GET / POST / DELETE | `/api/reports/` | student uploads (multipart `application`, `title`, `file`), supervisor and coordinator read | delete only before grading (FR-23) |
 | POST | `/api/reports/<id>/grade/` | supervisor | `{"grade": 0-100, "supervisor_comment"}` |
 | GET | `/api/placements/<id>/letter/` | student, supervisor, provider, coordinator | guidance letter PDF (FR-17) |
