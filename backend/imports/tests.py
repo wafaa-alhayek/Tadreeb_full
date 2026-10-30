@@ -1,3 +1,5 @@
+import shutil
+import tempfile
 from io import BytesIO, StringIO
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -8,7 +10,12 @@ from rest_framework.test import APITestCase
 
 from accounts.eligibility import check_eligibility
 from accounts.models import Department, Specialization, StudentProfile, User
+from applications.models import Application, ExceptionRequest, Placement
+from applications.status import Status
+from certificates.models import Certificate
+from notifications.models import Notification
 from providers.models import Opportunity, Provider
+from training.models import DailyLog, Report
 
 from .students import COLUMNS, build_workbook
 
@@ -223,28 +230,66 @@ class StudentImportTests(APITestCase):
         self.assertEqual(self.client.get("/api/students/me/").status_code, 200)
 
 
-@override_settings(DEBUG=True)
+MEDIA = tempfile.mkdtemp()  # the demo reports' files
+
+
+@override_settings(DEBUG=True, MEDIA_ROOT=MEDIA)
 class SeedDemoTests(TestCase):
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(MEDIA, ignore_errors=True)
+
     def seed(self):
         call_command("seed_demo", stdout=StringIO())
 
     def counts(self):
         return [
             model.objects.count()
-            for model in (Department, Specialization, Provider, Opportunity, User, StudentProfile)
+            for model in (
+                Department, Specialization, Provider, Opportunity, User, StudentProfile,
+                Application, Placement, ExceptionRequest, DailyLog, Report, Certificate,
+            )
         ]
 
     def test_seed_creates_the_demo_data(self):
         self.seed()
-        self.assertEqual(self.counts(), [2, 4, 4, 6, 12, 8])
+        self.assertEqual(self.counts()[:6], [2, 4, 4, 6, 18, 14])
         self.assertEqual(Provider.objects.filter(status=Provider.Status.SUSPENDED).count(), 1)
         self.assertEqual(Opportunity.objects.filter(status=Opportunity.Status.CLOSED).count(), 1)
         eligible = [p for p in StudentProfile.objects.all() if check_eligibility(p)[0]]
-        self.assertEqual(len(eligible), 5)
+        self.assertEqual(len(eligible), 11)
         provider_user = User.objects.get(username="demo_provider")
         self.assertEqual(provider_user.provider_profile.name, "شركة التقنية المتقدمة")
         for role in User.Role.values:
             self.assertTrue(User.objects.filter(role=role).exists(), role)
+
+    def test_one_student_at_each_stage(self):
+        self.seed()
+        stages = dict(Application.objects.values_list("student__username", "status"))
+        self.assertEqual(stages, {
+            "120260001": Status.DRAFT,
+            "120260002": Status.SUBMITTED,
+            "120260003": Status.UNDER_REVIEW,
+            "120260004": Status.ACCEPTED,
+            "120260005": Status.REJECTED,
+            "120260009": Status.ASSIGNED,
+            "120260010": Status.IN_TRAINING,
+            "120260011": Status.IN_TRAINING,
+            "120260012": Status.COMPLETED,
+            "120260013": Status.CERTIFIED,
+            "120260014": Status.WITHDRAWN,
+        })
+        exceptions = dict(ExceptionRequest.objects.values_list("kind", "status"))
+        self.assertEqual(exceptions, {
+            "issue": "pending",
+            "change_provider": "supervisor_approved",
+            "withdrawal": "approved",
+        })
+        self.assertEqual(Certificate.objects.get().application.student.username, "120260013")
+        # The demo accounts have something in their notifications.
+        for username in ("demo_coordinator", "demo_supervisor", "demo_provider", "120260013"):
+            self.assertTrue(Notification.objects.filter(recipient__username=username).exists(), username)
 
     def test_running_twice_adds_nothing(self):
         self.seed()

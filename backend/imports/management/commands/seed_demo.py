@@ -1,6 +1,8 @@
 """Fill a development database with demo data: `python manage.py seed_demo`.
 
-Safe to run again: everything is looked up by name first, so nothing is duplicated.
+Departments, providers, opportunities, accounts, and one student at each stage of the
+lifecycle, from a draft to a certificate (imports/demo_lifecycle.py).
+Safe to run again: everything is looked up first, so nothing is duplicated.
 """
 
 from datetime import timedelta
@@ -11,6 +13,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import Department, Specialization, StudentProfile, User
+from imports.demo_lifecycle import STAGES, Lifecycle
 from providers.models import Opportunity, Provider
 
 # Development only: every demo account shares this password.
@@ -50,7 +53,7 @@ PROVIDER_ACCOUNT = ("demo_provider", "شركة التقنية المتقدمة")
 
 
 def students():
-    """(username, first, last, specialization, hours, status): 5 eligible, 3 not (BR-01)."""
+    """(username, first, last, specialization, hours, status): 11 eligible, 3 not (BR-01)."""
     enough = settings.TADREEB_MIN_CREDIT_HOURS + 10
     active = StudentProfile.AcademicStatus.ACTIVE
     return [
@@ -59,6 +62,12 @@ def students():
         ("120260003", "محمد", "علي", "شبكات", enough, active),
         ("120260004", "لينا", "حسن", "محاسبة", enough + 2, active),
         ("120260005", "يوسف", "عمر", "إدارة أعمال", enough, active),
+        ("120260009", "نور", "سالم", "برمجة", enough, active),
+        ("120260010", "عمر", "ناصر", "برمجة", enough + 8, active),
+        ("120260011", "هبة", "زياد", "شبكات", enough, active),
+        ("120260012", "طارق", "منصور", "برمجة", enough + 12, active),
+        ("120260013", "ريم", "عادل", "شبكات", enough + 4, active),
+        ("120260014", "سامي", "فؤاد", "محاسبة", enough, active),
         # Not eligible, one reason each:
         ("120260006", "رنا", "سعيد", "برمجة", settings.TADREEB_MIN_CREDIT_HOURS - 30, active),
         ("120260007", "خالد", "يوسف", "شبكات", enough, StudentProfile.AcademicStatus.SUSPENDED),
@@ -143,13 +152,26 @@ class Command(BaseCommand):
                 },
             )
 
+        built = Lifecycle(
+            students={u.username: u for u in User.objects.filter(role=User.Role.STUDENT, username__startswith="12026")},
+            opportunities={o.title: o for o in Opportunity.objects.filter(provider__in=providers.values())},
+            coordinator=accounts["demo_coordinator"],
+            supervisor=accounts["demo_supervisor"],
+            provider_user=accounts["demo_provider"],
+        ).run()
+
         self.stdout.write(self.style.SUCCESS("تمت إضافة البيانات التجريبية."))
         self.stdout.write(
             f"{Department.objects.count()} أقسام، {Specialization.objects.count()} تخصصات، "
             f"{Provider.objects.count()} جهات، {Opportunity.objects.count()} فرص، "
             f"{StudentProfile.objects.count()} طلاب."
         )
-        self.stdout.write("الحسابات: " + "، ".join(u for u, *_ in STAFF) + "، والطلاب 120260001 إلى 120260008")
+        self.stdout.write(f"طلبات تدريب جديدة: {built}")
+        self.stdout.write("الحسابات: " + "، ".join(u for u, *_ in STAFF))
+        self.stdout.write("الطلاب ومرحلة كل واحد:")
+        for username, stage in STAGES:
+            self.stdout.write(f"  {username}: {stage}")
+        self.stdout.write("  120260006 إلى 120260008: غير مؤهلين (ساعات ناقصة، موقوف، متخرج)")
         self.stdout.write(self.style.WARNING(
             f"تحذير: كلمة السر لكل الحسابات التجريبية هي {DEMO_PASSWORD} — للتطوير فقط، لا تستخدمها على الخادم."
         ))

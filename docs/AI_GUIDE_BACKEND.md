@@ -34,7 +34,7 @@ Run locally (Windows PowerShell, from `backend/`):
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 python manage.py migrate
-python manage.py seed_demo        # demo departments, providers, opportunities, accounts
+python manage.py seed_demo        # demo data, plus one student at each lifecycle stage (imports/demo_lifecycle.py)
 python manage.py runserver        # then open http://127.0.0.1:8000/api/docs/
 python manage.py test             # run all tests
 ```
