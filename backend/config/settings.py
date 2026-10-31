@@ -258,3 +258,23 @@ TADREEB_INSTITUTION_NAME = os.environ.get("TADREEB_INSTITUTION_NAME", "جامع�
 # FR-35: the page the certificate's QR code opens, e.g. "https://tadreeb.netlify.app/verify/{code}".
 # Empty means the back-end's own page at /verify/<code>/.
 TADREEB_CERTIFICATE_VERIFY_URL = os.environ.get("TADREEB_CERTIFICATE_VERIFY_URL", "")
+
+# NFR-10: unexpected errors (HTTP 500) are written to logs/errors.log.
+LOGS_DIR = BASE_DIR / "logs"
+LOGS_DIR.mkdir(exist_ok=True)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "errors_file": {
+            "class": "logging.FileHandler",
+            "filename": LOGS_DIR / "errors.log",
+            "level": "ERROR",
+            "encoding": "utf-8",
+        },
+    },
+    "loggers": {
+        "django.request": {"handlers": ["errors_file"], "level": "ERROR", "propagate": True},
+    },
+}
