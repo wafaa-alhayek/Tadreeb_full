@@ -86,3 +86,7 @@ urlpatterns = [
     path("api/exports/applications/", ApplicationsExportView.as_view()),
     path("api/", include(router.urls)),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# NFR-10: friendly Arabic pages for "not found" and unexpected errors.
+handler404 = "config.errors.not_found"
+handler500 = "config.errors.server_error"
